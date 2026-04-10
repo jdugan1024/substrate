@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -43,6 +44,11 @@ var (
 // patternMatch attempts to classify text using deterministic rules.
 // Returns (recordType, confidence) or ("", 0) if no strong signal.
 func patternMatch(text string) (recordType string, confidence float64) {
+	// Explicit link: prefix — highest priority, no ambiguity.
+	if trimmed := strings.TrimSpace(text); len(trimmed) >= 5 && strings.EqualFold(trimmed[:5], "link:") {
+		return "note.link", 1.0
+	}
+
 	hasEmail := reEmail.MatchString(text)
 	hasPhone := rePhone.MatchString(text)
 	hasURL := reURL.MatchString(text)
@@ -135,6 +141,28 @@ func (a *App) Extract(ctx context.Context, text string) (*Envelope, error) {
 // type is already known from pattern matching. Uses the LLM only for field
 // extraction (a narrower, cheaper prompt).
 func (a *App) buildDeterministicEnvelope(ctx context.Context, text, recordType string) (*Envelope, error) {
+	// note.link: strip optional link: prefix, parse url+notes, sync fetch metadata.
+	if recordType == "note.link" {
+		raw := strings.TrimSpace(text)
+		if len(raw) >= 5 && strings.EqualFold(raw[:5], "link:") {
+			raw = strings.TrimSpace(raw[5:])
+		}
+		rawURL, notes := ParseLinkText(raw)
+
+		fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		title, desc, fetchErr := FetchLinkMeta(fetchCtx, rawURL)
+
+		payload, contentText := BuildLinkPayload(rawURL, title, desc, notes, fetchErr)
+		return &Envelope{
+			RecordType:    "note.link",
+			SchemaVersion: "1.0.0",
+			Payload:       payload,
+			ContentText:   contentText,
+			Confidence:    1.0,
+		}, nil
+	}
+
 	// For note.thought, we can skip LLM entirely — just wrap the content.
 	if recordType == "note.thought" {
 		payload, _ := json.Marshal(map[string]any{"content": text})
