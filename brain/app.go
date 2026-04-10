@@ -84,6 +84,24 @@ func (a *App) WithUserTx(ctx context.Context, fn func(pgx.Tx) error) error {
 	return tx.Commit(ctx)
 }
 
+// WithAdminTx begins a transaction that bypasses row-level security.
+// Requires the database role to have the BYPASSRLS attribute or be the
+// table owner. Used exclusively by the EnrichmentWorker.
+func (a *App) WithAdminTx(ctx context.Context, fn func(pgx.Tx) error) error {
+	tx, err := a.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, "SET LOCAL row_security = off"); err != nil {
+		return fmt.Errorf("disable row_security: %w", err)
+	}
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 // GetEmbedding returns a vector embedding for text via OpenRouter.
 func (a *App) GetEmbedding(ctx context.Context, text string) (pgvector.Vector, error) {
 	body, _ := json.Marshal(map[string]string{
