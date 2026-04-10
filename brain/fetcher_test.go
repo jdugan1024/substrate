@@ -169,3 +169,60 @@ func TestBuildLinkPayload_NoNotes(t *testing.T) {
 		t.Error("notes should be omitted when empty")
 	}
 }
+
+func TestBuildNoteLinkEnvelope_WithLinkPrefix(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<html><head><title>Test Page</title></head><body/></html>`))
+	}))
+	defer srv.Close()
+
+	env := BuildNoteLinkEnvelope(context.Background(), "link:"+srv.URL+"  my notes")
+
+	if env.RecordType != "note.link" {
+		t.Errorf("got RecordType %q, want %q", env.RecordType, "note.link")
+	}
+	if env.SchemaVersion != "1.0.0" {
+		t.Errorf("got SchemaVersion %q, want %q", env.SchemaVersion, "1.0.0")
+	}
+	if env.Confidence != 1.0 {
+		t.Errorf("got Confidence %v, want 1.0", env.Confidence)
+	}
+	if env.ContentText == "" {
+		t.Error("ContentText should not be empty")
+	}
+	var m map[string]any
+	if err := json.Unmarshal(env.Payload, &m); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if m["notes"] != "my notes" {
+		t.Errorf("got notes %v, want %q", m["notes"], "my notes")
+	}
+}
+
+func TestBuildNoteLinkEnvelope_WithoutPrefix(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(`<html><head><title>No Prefix</title></head><body/></html>`))
+	}))
+	defer srv.Close()
+
+	env := BuildNoteLinkEnvelope(context.Background(), srv.URL)
+
+	if env.RecordType != "note.link" {
+		t.Errorf("got RecordType %q, want %q", env.RecordType, "note.link")
+	}
+	if env.Confidence != 1.0 {
+		t.Errorf("got Confidence %v, want 1.0", env.Confidence)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(env.Payload, &m); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if m["url"] != srv.URL {
+		t.Errorf("got url %v, want %q", m["url"], srv.URL)
+	}
+	if _, ok := m["notes"]; ok {
+		t.Error("notes should be omitted when empty")
+	}
+}

@@ -29,6 +29,8 @@ var (
 	reTitleTag    = regexp.MustCompile(`(?i)<title[^>]*>([^<]+)</title>`)
 	reHTMLTag     = regexp.MustCompile(`<[^>]+>`)
 	reSpaces      = regexp.MustCompile(`\s+`)
+
+	linkHTTPClient = &http.Client{Timeout: 15 * time.Second}
 )
 
 // FetchLinkMeta fetches the given URL and extracts title and description from
@@ -41,7 +43,7 @@ func FetchLinkMeta(ctx context.Context, rawURL string) (title, description strin
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Engram/1.0; +https://engram.x1024.net)")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := linkHTTPClient.Do(req)
 	if err != nil {
 		return "", "", fmt.Errorf("fetch: %w", err)
 	}
@@ -124,6 +126,30 @@ func BuildLinkPayload(rawURL, title, description, notes string, fetchErr error) 
 
 	b, _ := json.Marshal(m)
 	return b, contentText
+}
+
+// BuildNoteLinkEnvelope constructs a complete note.link Envelope from raw text.
+// It strips an optional "link:" prefix, parses url+notes, and synchronously
+// fetches page metadata. Always returns a non-nil Envelope with Confidence=1.0.
+func BuildNoteLinkEnvelope(ctx context.Context, text string) *Envelope {
+	raw := strings.TrimSpace(text)
+	if len(raw) >= 5 && strings.EqualFold(raw[:5], "link:") {
+		raw = strings.TrimSpace(raw[5:])
+	}
+	rawURL, notes := ParseLinkText(raw)
+
+	fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	title, desc, fetchErr := FetchLinkMeta(fetchCtx, rawURL)
+
+	payload, contentText := BuildLinkPayload(rawURL, title, desc, notes, fetchErr)
+	return &Envelope{
+		RecordType:    "note.link",
+		SchemaVersion: "1.0.0",
+		Payload:       payload,
+		ContentText:   contentText,
+		Confidence:    1.0,
+	}
 }
 
 // ── Enrichment worker ─────────────────────────────────────────────────────────
@@ -353,7 +379,7 @@ func fetchFullText(ctx context.Context, rawURL string) (string, error) {
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Engram/1.0; +https://engram.x1024.net)")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := linkHTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}

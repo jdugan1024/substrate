@@ -143,24 +143,7 @@ func (a *App) Extract(ctx context.Context, text string) (*Envelope, error) {
 func (a *App) buildDeterministicEnvelope(ctx context.Context, text, recordType string) (*Envelope, error) {
 	// note.link: strip optional link: prefix, parse url+notes, sync fetch metadata.
 	if recordType == "note.link" {
-		raw := strings.TrimSpace(text)
-		if len(raw) >= 5 && strings.EqualFold(raw[:5], "link:") {
-			raw = strings.TrimSpace(raw[5:])
-		}
-		rawURL, notes := ParseLinkText(raw)
-
-		fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		title, desc, fetchErr := FetchLinkMeta(fetchCtx, rawURL)
-
-		payload, contentText := BuildLinkPayload(rawURL, title, desc, notes, fetchErr)
-		return &Envelope{
-			RecordType:    "note.link",
-			SchemaVersion: "1.0.0",
-			Payload:       payload,
-			ContentText:   contentText,
-			Confidence:    1.0,
-		}, nil
+		return BuildNoteLinkEnvelope(ctx, text), nil
 	}
 
 	// For note.thought, we can skip LLM entirely — just wrap the content.
