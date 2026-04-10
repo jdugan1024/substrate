@@ -78,6 +78,12 @@ func main() {
 
 	es := service.NewEntryService(app)
 
+	// Start background enrichment worker — retries failed link fetches and
+	// extracts full-text for richer semantic embeddings.
+	workerCtx, workerCancel := context.WithCancel(ctx)
+	defer workerCancel()
+	go brain.NewEnrichmentWorker(app).Run(workerCtx)
+
 	s := server.NewMCPServer("open-brain", "1.0.0")
 
 	core.Register(s, app)
