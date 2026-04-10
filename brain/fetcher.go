@@ -190,6 +190,7 @@ func (w *EnrichmentWorker) fetchPendingLinks(ctx context.Context) {
 				return err
 			}
 			if err := json.Unmarshal(raw, &e.payload); err != nil {
+				log.Printf("enrichment: skip entry %s: unmarshal payload: %v", e.id, err)
 				continue
 			}
 			e.url, _ = e.payload["url"].(string)
