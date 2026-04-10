@@ -528,12 +528,26 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// ── PWA Share target ──────────────────────────────────────────────────────────
+
+function maybePreFillShare() {
+  const params = new URLSearchParams(window.location.search);
+  const shareURL = params.get('share_url');
+  if (!shareURL) return;
+
+  const shareTitle = params.get('share_title');
+  const textarea = document.getElementById('note-input');
+  textarea.value = 'link:' + shareURL + (shareTitle ? '  ' + shareTitle : '');
+  // Clean the URL so refreshing doesn't re-fill the textarea.
+  window.history.replaceState({}, '', '/');
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 async function init() {
   if (window.location.search.includes('code=')) {
     const ok = await handleCallback();
-    if (ok) { showCaptureSection(); return; }
+    if (ok) { showCaptureSection(); maybePreFillShare(); return; }
     showAuthSection();
     return;
   }
@@ -541,6 +555,7 @@ async function init() {
   const token = await getValidToken();
   if (token) {
     showCaptureSection();
+    maybePreFillShare();
   } else {
     showAuthSection();
   }
