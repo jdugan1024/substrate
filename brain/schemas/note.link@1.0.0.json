@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "note.link",
+  "type": "object",
+  "required": ["url"],
+  "additionalProperties": false,
+  "properties": {
+    "url":            { "type": "string" },
+    "title":          { "type": "string" },
+    "description":    { "type": "string" },
+    "notes":          { "type": "string" },
+    "fetch_status":   { "type": "string", "enum": ["pending", "fetched", "failed"] },
+    "fetch_error":    { "type": "string" },
+    "extract_status": { "type": "string", "enum": ["pending", "extracted", "failed"] },
+    "extract_error":  { "type": "string" }
+  }
+}

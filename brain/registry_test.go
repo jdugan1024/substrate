@@ -12,6 +12,7 @@ func TestSchemaRegistry_AllSchemasLoad(t *testing.T) {
 		"crm.interaction",
 		"maintenance.task",
 		"jobhunt.application",
+		"note.link",
 	}
 	for _, rt := range expected {
 		se, err := SchemaFor(rt, "1.0.0")
@@ -43,7 +44,7 @@ func TestSchemaRegistry_UnknownTypeReturnsError(t *testing.T) {
 
 func TestSchemaRegistry_KnownRecordTypes(t *testing.T) {
 	types := KnownRecordTypes()
-	if len(types) < 6 {
-		t.Errorf("expected at least 6 known record types, got %d", len(types))
+	if len(types) < 7 {
+		t.Errorf("expected at least 7 known record types, got %d", len(types))
 	}
 }
