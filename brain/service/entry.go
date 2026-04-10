@@ -135,8 +135,16 @@ func (s *EntryService) CaptureTyped(ctx context.Context, recordType, text, sourc
 		Confidence:    0.9, // type is known — high base confidence
 	}
 
-	// For note.thought, skip LLM field extraction and wrap content directly.
-	if recordType == "note.thought" {
+	// For note.link, parse url+notes and sync-fetch metadata; no LLM involved.
+	if recordType == "note.link" {
+		rawURL, notes := brain.ParseLinkText(text)
+
+		fetchCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		title, desc, fetchErr := brain.FetchLinkMeta(fetchCtx, rawURL)
+
+		env.Payload, env.ContentText = brain.BuildLinkPayload(rawURL, title, desc, notes, fetchErr)
+	} else if recordType == "note.thought" {
 		env.Payload, _ = json.Marshal(map[string]any{"content": text})
 	} else {
 		payload, err := s.app.LLMExtractPayload(ctx, prompt, text)
