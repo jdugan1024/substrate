@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/png"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 
@@ -70,14 +71,47 @@ var manifestJSON = `{
   "icons": [
     { "src": "/icon?s=192", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/icon?s=512", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
-  ]
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text":  "text",
+      "url":   "url"
+    }
+  }
 }
 `
 
 var serviceWorkerJS = `
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+self.addEventListener('fetch', e => {
+  // Pass through the share target endpoint — never cache it.
+  if (new URL(e.request.url).pathname === '/share') return;
+});
 `
+
+func shareHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		shareURL := q.Get("url")
+		if shareURL == "" {
+			shareURL = q.Get("text") // some browsers send the URL in the text param
+		}
+		shareTitle := q.Get("title")
+
+		rq := url.Values{}
+		if shareURL != "" {
+			rq.Set("share_url", shareURL)
+		}
+		if shareTitle != "" {
+			rq.Set("share_title", shareTitle)
+		}
+		http.Redirect(w, r, "/?"+rq.Encode(), http.StatusFound)
+	}
+}
 
 func RegisterPWAHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("GET /manifest.json", func(w http.ResponseWriter, r *http.Request) {
@@ -91,4 +125,5 @@ func RegisterPWAHandlers(mux *http.ServeMux) {
 		w.Write([]byte(serviceWorkerJS))
 	})
 	mux.HandleFunc("GET /icon", iconHandler())
+	mux.HandleFunc("GET /share", shareHandler())
 }
