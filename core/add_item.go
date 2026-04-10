@@ -28,6 +28,7 @@ var typeAliases = map[string]string{
 	"task":        "maintenance.task",
 	"job":         "jobhunt.application",
 	"application": "jobhunt.application",
+	"link":        "note.link",
 	// canonical names also accepted
 	"note.thought":         "note.thought",
 	"note.unstructured":    "note.unstructured",
@@ -35,6 +36,7 @@ var typeAliases = map[string]string{
 	"crm.interaction":      "crm.interaction",
 	"maintenance.task":     "maintenance.task",
 	"jobhunt.application":  "jobhunt.application",
+	"note.link":            "note.link",
 }
 
 // RegisterAddItem adds the unified add_item tool to the MCP server.
@@ -74,7 +76,7 @@ func addItem(a *brain.App, es *service.EntryService) server.ToolHandlerFunc {
 		// Resolve type alias to canonical record_type.
 		recordType, ok := typeAliases[typeArg]
 		if !ok {
-			known := strings.Join([]string{"contact", "thought", "maintenance", "job", "interaction"}, ", ")
+			known := strings.Join([]string{"contact", "link", "thought", "maintenance", "job", "interaction"}, ", ")
 			return brain.ToolError(fmt.Sprintf("unknown type %q — use one of: %s", typeArg, known)), nil
 		}
 
