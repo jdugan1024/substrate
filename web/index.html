@@ -190,11 +190,20 @@
   }
 
   .btn-login:not(:disabled):hover { background: var(--accent-hover); }
+
+  .browse-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+    margin-left: 0.5rem;
+  }
+  .browse-link:hover { color: var(--accent); }
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>Engram</h1>
+  <h1>Engram <a href="/browse" class="browse-link">Browse →</a></h1>
 
   <div id="auth-section" style="display:none">
     <p class="auth-desc">Sign in to capture notes, interactions, and tasks.</p>
