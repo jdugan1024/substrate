@@ -311,7 +311,7 @@ function formatDate(iso) {
 }
 
 function formatType(t) {
-  return t.replace('.', ' · ');
+  return t.replace(/\./g, ' · ');
 }
 
 function renderCard(entry) {
@@ -357,7 +357,8 @@ function showLoadMoreError() {
   const el = document.createElement('div');
   el.id = 'load-more-err';
   el.className = 'load-more-err';
-  el.innerHTML = `Failed to load more. <a onclick="retryLoadMore()">Tap to retry.</a>`;
+  el.innerHTML = `Failed to load more. <a class="load-more-err-link">Tap to retry.</a>`;
+  el.querySelector('.load-more-err-link').addEventListener('click', retryLoadMore);
   document.getElementById('feed').appendChild(el);
 }
 
@@ -374,7 +375,7 @@ async function fetchEntries(isInitial) {
   loading = true;
 
   const token = await getValidToken();
-  if (!token) { clearTokens(); window.location.href = '/'; return; }
+  if (!token) { loading = false; clearTokens(); window.location.href = '/'; return; }
 
   const params = new URLSearchParams({ limit: '50', offset: String(offset) });
   if (currentQ) params.set('q', currentQ);
@@ -392,7 +393,7 @@ async function fetchEntries(isInitial) {
     return;
   }
 
-  if (resp.status === 401) { clearTokens(); window.location.href = '/'; return; }
+  if (resp.status === 401) { loading = false; clearTokens(); window.location.href = '/'; return; }
 
   if (!resp.ok) {
     loading = false;
