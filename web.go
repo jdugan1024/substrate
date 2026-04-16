@@ -1,5 +1,5 @@
-// ABOUTME: Web capture UI handlers for engram.
-// ABOUTME: Serves the single-page capture UI and processes POST /capture requests.
+// ABOUTME: Web UI handlers for engram.
+// ABOUTME: Serves capture and browse UIs, and the GET /entries API endpoint.
 
 package main
 
@@ -22,10 +22,14 @@ import (
 //go:embed web/index.html
 var webUI string
 
+//go:embed web/browse.html
+var browseUI string
+
 // RegisterWebHandlers adds the web UI and capture endpoint to the mux.
 func RegisterWebHandlers(mux *http.ServeMux, a *brain.App, es *service.EntryService) {
 	mux.HandleFunc("/", serveWebUI())
 	mux.Handle("POST /capture", authMiddleware(a, http.HandlerFunc(webCaptureHandler(a, es))))
+	mux.HandleFunc("GET /browse", serveBrowseUI())
 	mux.Handle("GET /entries", authMiddleware(a, http.HandlerFunc(listEntriesHandler(a))))
 }
 
@@ -42,6 +46,14 @@ func serveWebUI() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		fmt.Fprint(w, webUI)
+	}
+}
+
+func serveBrowseUI() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		fmt.Fprint(w, browseUI)
 	}
 }
 
