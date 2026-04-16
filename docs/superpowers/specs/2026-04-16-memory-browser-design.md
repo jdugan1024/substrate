@@ -45,7 +45,7 @@ Response shape:
 }
 ```
 
-`payload_summary` reuses the existing `formatPayloadSummary` function from `core/search.go`. Results are ordered by `created_at DESC`.
+`payload_summary` applies the same per-record-type summary logic as `formatPayloadSummary` in `core/search.go`. That function is currently unexported; the implementation will either export it (`FormatPayloadSummary`) or inline the equivalent logic in the entries handler. Results are ordered by `created_at DESC`.
 
 Text search uses `ILIKE` — no embedding API call needed. This is fast enough at personal-data volumes and avoids latency.
 
