@@ -124,15 +124,15 @@ func searchAll(a *brain.App) server.ToolHandlerFunc {
 			fmt.Fprintf(&sb, "--- %d. %s (%.1f%% match, %s) ---\n",
 				i+1, r.RecordType, r.Similarity*100, r.CreatedAt.Format("2006-01-02"))
 			fmt.Fprintf(&sb, "%s\n", r.ContentText)
-			fmt.Fprintf(&sb, "%s\n\n", formatPayloadSummary(r.RecordType, r.Payload))
+			fmt.Fprintf(&sb, "%s\n\n", FormatPayloadSummary(r.RecordType, r.Payload))
 		}
 		return brain.TextResult(sb.String()), nil
 	}
 }
 
-// formatPayloadSummary renders a compact human-readable summary of a payload
+// FormatPayloadSummary renders a compact human-readable summary of a payload
 // based on its record type, without dumping raw JSON.
-func formatPayloadSummary(recordType string, raw json.RawMessage) string {
+func FormatPayloadSummary(recordType string, raw json.RawMessage) string {
 	var m map[string]any
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return ""
@@ -188,6 +188,13 @@ func formatPayloadSummary(recordType string, raw json.RawMessage) string {
 			if len(ts) > 0 {
 				parts = append(parts, "Topics: "+strings.Join(ts, ", "))
 			}
+		}
+	case "note.link":
+		if v, _ := m["title"].(string); v != "" {
+			parts = append(parts, "Title: "+v)
+		}
+		if v, _ := m["url"].(string); v != "" {
+			parts = append(parts, v)
 		}
 	case "note.unstructured":
 		if v, _ := m["failure_mode"].(string); v != "" {
