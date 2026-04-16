@@ -71,6 +71,7 @@ type entryItem struct {
 	RecordType     string `json:"record_type"`
 	ContentText    string `json:"content_text"`
 	PayloadSummary string `json:"payload_summary"`
+	URL            string `json:"url,omitempty"`
 	CreatedAt      string `json:"created_at"`
 }
 
@@ -129,6 +130,14 @@ func listEntriesHandler(a *brain.App) http.HandlerFunc {
 				}
 				item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 				item.PayloadSummary = core.FormatPayloadSummary(item.RecordType, payload)
+				if item.RecordType == "note.link" {
+					var p struct {
+						URL string `json:"url"`
+					}
+					if json.Unmarshal(payload, &p) == nil {
+						item.URL = p.URL
+					}
+				}
 				items = append(items, item)
 			}
 			return rows.Err()
