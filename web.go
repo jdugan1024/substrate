@@ -31,7 +31,6 @@ func RegisterWebHandlers(mux *http.ServeMux, a *brain.App, es *service.EntryServ
 	mux.Handle("POST /capture", webAuthMiddleware(sessions, http.HandlerFunc(webCaptureHandler(a, es))))
 	mux.HandleFunc("GET /browse", serveBrowseUI())
 	mux.Handle("GET /entries", webAuthMiddleware(sessions, http.HandlerFunc(listEntriesHandler(a))))
-	mux.HandleFunc("GET /web/check", webCheckHandler(sessions))
 }
 
 func serveWebUI() http.HandlerFunc {

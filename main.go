@@ -109,6 +109,7 @@ func main() {
 	mux.HandleFunc("GET /web/login", webLoginHandler(issuerURL, clientID, sessionStore))
 	mux.HandleFunc("GET /web/callback", webCallbackHandler(app, issuerURL, clientID, sessionStore))
 	mux.HandleFunc("GET /web/logout", webLogoutHandler(sessionStore))
+	mux.HandleFunc("GET /web/check", webCheckHandler(sessionStore))
 	RegisterWebHandlers(mux, app, es, sessionStore)
 	RegisterPWAHandlers(mux)
 
