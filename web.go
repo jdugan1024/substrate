@@ -26,11 +26,12 @@ var webUI string
 var browseUI string
 
 // RegisterWebHandlers adds the web UI and capture endpoint to the mux.
-func RegisterWebHandlers(mux *http.ServeMux, a *brain.App, es *service.EntryService) {
+func RegisterWebHandlers(mux *http.ServeMux, a *brain.App, es *service.EntryService, sessions *WebSessionStore) {
 	mux.HandleFunc("/", serveWebUI())
-	mux.Handle("POST /capture", authMiddleware(a, http.HandlerFunc(webCaptureHandler(a, es))))
+	mux.Handle("POST /capture", webAuthMiddleware(sessions, http.HandlerFunc(webCaptureHandler(a, es))))
 	mux.HandleFunc("GET /browse", serveBrowseUI())
-	mux.Handle("GET /entries", authMiddleware(a, http.HandlerFunc(listEntriesHandler(a))))
+	mux.Handle("GET /entries", webAuthMiddleware(sessions, http.HandlerFunc(listEntriesHandler(a))))
+	mux.HandleFunc("GET /web/check", webCheckHandler(sessions))
 }
 
 func serveWebUI() http.HandlerFunc {

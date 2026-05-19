@@ -84,6 +84,9 @@ func main() {
 	defer workerCancel()
 	go brain.NewEnrichmentWorker(app).Run(workerCtx)
 
+	sessionStore := NewWebSessionStore()
+	sessionStore.StartCleanup(workerCtx)
+
 	s := server.NewMCPServer("open-brain", "1.0.0")
 
 	core.Register(s, app)
@@ -103,7 +106,10 @@ func main() {
 	mux.HandleFunc("GET /oauth/authorize", oauthAuthorizeHandler(issuerURL, clientID))
 	mux.HandleFunc("GET /oauth/callback", oauthCallbackHandler())
 	mux.HandleFunc("POST /oauth/token", oauthTokenHandler(issuerURL, clientID))
-	RegisterWebHandlers(mux, app, es)
+	mux.HandleFunc("GET /web/login", webLoginHandler(issuerURL, clientID, sessionStore))
+	mux.HandleFunc("GET /web/callback", webCallbackHandler(app, issuerURL, clientID, sessionStore))
+	mux.HandleFunc("GET /web/logout", webLogoutHandler(sessionStore))
+	RegisterWebHandlers(mux, app, es, sessionStore)
 	RegisterPWAHandlers(mux)
 
 	log.Printf("Open Brain MCP server listening on :%s", port)
