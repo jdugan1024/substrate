@@ -269,37 +269,6 @@
 <div id="sentinel"></div>
 
 <script>
-// ── Token helpers (mirrors capture page logic) ────────────────────────────────
-
-function clearTokens() {
-  ['engram_access_token', 'engram_refresh_token', 'engram_token_expires_at']
-    .forEach(k => localStorage.removeItem(k));
-}
-
-async function refreshAccessToken() {
-  const rt = localStorage.getItem('engram_refresh_token');
-  if (!rt) { clearTokens(); return null; }
-  const resp = await fetch('/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: rt, client_id: 'engram' }),
-  });
-  if (!resp.ok) { clearTokens(); return null; }
-  const tokens = await resp.json();
-  localStorage.setItem('engram_access_token', tokens.access_token);
-  if (tokens.refresh_token) localStorage.setItem('engram_refresh_token', tokens.refresh_token);
-  localStorage.setItem('engram_token_expires_at', String(Date.now() + (tokens.expires_in || 3600) * 1000));
-  return tokens.access_token;
-}
-
-async function getValidToken() {
-  const token = localStorage.getItem('engram_access_token');
-  const exp = parseInt(localStorage.getItem('engram_token_expires_at') || '0');
-  if (!token) return null;
-  if (Date.now() >= exp - 60_000) return await refreshAccessToken();
-  return token;
-}
-
 // ── State ─────────────────────────────────────────────────────────────────────
 
 let offset = 0;
@@ -395,18 +364,13 @@ async function fetchEntries(isInitial) {
   if (loading) return;
   loading = true;
 
-  const token = await getValidToken();
-  if (!token) { loading = false; clearTokens(); window.location.href = '/'; return; }
-
   const params = new URLSearchParams({ limit: '50', offset: String(offset) });
   if (currentQ) params.set('q', currentQ);
   if (currentType) params.set('type', currentType);
 
   let resp;
   try {
-    resp = await fetch('/entries?' + params, {
-      headers: { 'Authorization': 'Bearer ' + token },
-    });
+    resp = await fetch('/entries?' + params);
   } catch {
     loading = false;
     if (isInitial) showInitialError();
@@ -414,7 +378,7 @@ async function fetchEntries(isInitial) {
     return;
   }
 
-  if (resp.status === 401) { loading = false; clearTokens(); window.location.href = '/'; return; }
+  if (resp.status === 401) { loading = false; window.location.href = '/web/login'; return; }
 
   if (!resp.ok) {
     loading = false;
@@ -496,8 +460,8 @@ document.getElementById('chips').addEventListener('click', (e) => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const token = await getValidToken();
-  if (!token) { window.location.href = '/'; return; }
+  const resp = await fetch('/web/check');
+  if (resp.status === 401) { window.location.href = '/web/login'; return; }
   setupObserver();
   fetchEntries(true);
 }
