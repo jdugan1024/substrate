@@ -414,8 +414,14 @@ function maybePreFillShare() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const resp = await fetch('/web/check');
-  if (resp.status === 401) {
+  try {
+    const resp = await fetch('/web/check');
+    if (resp.status === 401) {
+      showAuthSection();
+      return;
+    }
+  } catch {
+    showError('Could not connect — check your network and try again.');
     showAuthSection();
     return;
   }
