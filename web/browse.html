@@ -460,8 +460,17 @@ document.getElementById('chips').addEventListener('click', (e) => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const resp = await fetch('/web/check');
-  if (resp.status === 401) { window.location.href = '/web/login'; return; }
+  try {
+    const resp = await fetch('/web/check');
+    if (resp.status === 401) { window.location.href = '/web/login'; return; }
+  } catch {
+    const feed = document.getElementById('feed');
+    const msg = document.createElement('div');
+    msg.className = 'state-msg';
+    msg.textContent = 'Could not connect — check your network and try again.';
+    feed.appendChild(msg);
+    return;
+  }
   setupObserver();
   fetchEntries(true);
 }
