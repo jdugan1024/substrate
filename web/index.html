@@ -235,7 +235,13 @@ function showAuthSection() {
 function showCaptureSection() {
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('capture-section').style.display = '';
-  document.getElementById('note-input').focus();
+  const textarea = document.getElementById('note-input');
+  const draft = sessionStorage.getItem('engram_draft');
+  if (draft) {
+    textarea.value = draft;
+    sessionStorage.removeItem('engram_draft');
+  }
+  textarea.focus();
 }
 
 function showResult(type, message, tool) {
@@ -372,7 +378,12 @@ async function submitNote() {
       body: JSON.stringify({ text }),
     });
 
-    if (resp.status === 401) { showAuthSection(); return; }
+    if (resp.status === 401) {
+      const ta = document.getElementById('note-input');
+      if (ta.value.trim()) sessionStorage.setItem('engram_draft', ta.value);
+      showAuthSection();
+      return;
+    }
 
     const data = await resp.json();
     if (!resp.ok) {
