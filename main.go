@@ -157,7 +157,7 @@ func oauthMetadataHandler(issuerURL, clientID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
-			"issuer":                           issuerURL,
+			"issuer":                           "https://engram.x1024.net",
 			"authorization_endpoint":           "https://engram.x1024.net/oauth/authorize",
 			"token_endpoint":                   "https://engram.x1024.net/oauth/token",
 			"registration_endpoint":            "https://engram.x1024.net/oauth/register",
