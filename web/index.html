@@ -207,7 +207,7 @@
 
   <div id="auth-section" style="display:none">
     <p class="auth-desc">Sign in to capture notes, interactions, and tasks.</p>
-    <button class="btn-login" id="login-btn" onclick="startLogin()">Log In</button>
+    <button class="btn-login" id="login-btn" onclick="window.location.href='/web/login'">Log In</button>
   </div>
 
   <div id="capture-section" style="display:none">
@@ -225,136 +225,7 @@
 </div>
 
 <script>
-const CLIENT_ID    = 'engram';
-const REDIRECT_URI = 'https://engram.x1024.net/';
-const SCOPE        = 'openid offline_access';
-
-// ── PKCE helpers ──────────────────────────────────────────────────────────────
-
-function randomBase64url(byteLength) {
-  const arr = new Uint8Array(byteLength);
-  crypto.getRandomValues(arr);
-  return btoa(String.fromCharCode(...arr))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-async function sha256Base64url(str) {
-  const data = new TextEncoder().encode(str);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-// ── Token storage ─────────────────────────────────────────────────────────────
-
-function storeTokens(tokens) {
-  localStorage.setItem('engram_access_token', tokens.access_token);
-  if (tokens.refresh_token) {
-    localStorage.setItem('engram_refresh_token', tokens.refresh_token);
-  }
-  const expiresAt = Date.now() + (tokens.expires_in || 3600) * 1000;
-  localStorage.setItem('engram_token_expires_at', String(expiresAt));
-}
-
-function clearTokens() {
-  ['engram_access_token', 'engram_refresh_token', 'engram_token_expires_at']
-    .forEach(k => localStorage.removeItem(k));
-}
-
-async function getValidToken() {
-  const token     = localStorage.getItem('engram_access_token');
-  const expiresAt = parseInt(localStorage.getItem('engram_token_expires_at') || '0');
-  if (!token) return null;
-
-  if (Date.now() >= expiresAt - 60_000) {
-    return await refreshAccessToken();
-  }
-  return token;
-}
-
-async function refreshAccessToken() {
-  const refreshToken = localStorage.getItem('engram_refresh_token');
-  if (!refreshToken) { clearTokens(); return null; }
-
-  const resp = await fetch('/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type:    'refresh_token',
-      refresh_token: refreshToken,
-      client_id:     CLIENT_ID,
-    }),
-  });
-  if (!resp.ok) { clearTokens(); return null; }
-
-  const tokens = await resp.json();
-  storeTokens(tokens);
-  return tokens.access_token;
-}
-
-// ── OAuth PKCE flow ───────────────────────────────────────────────────────────
-
-async function startLogin() {
-  const verifier   = randomBase64url(32);
-  const challenge  = await sha256Base64url(verifier);
-  const state      = randomBase64url(16);
-
-  sessionStorage.setItem('pkce_verifier', verifier);
-  sessionStorage.setItem('pkce_state', state);
-
-  const params = new URLSearchParams({
-    response_type:         'code',
-    client_id:             CLIENT_ID,
-    redirect_uri:          REDIRECT_URI,
-    scope:                 SCOPE,
-    state,
-    code_challenge:        challenge,
-    code_challenge_method: 'S256',
-  });
-  window.location.href = '/oauth/authorize?' + params;
-}
-
-async function handleCallback() {
-  const params = new URLSearchParams(window.location.search);
-  const code   = params.get('code');
-  if (!code) return false;
-
-  const state      = params.get('state');
-  const savedState = sessionStorage.getItem('pkce_state');
-  if (state !== savedState) {
-    showError('State mismatch — please try logging in again.');
-    return false;
-  }
-
-  const verifier = sessionStorage.getItem('pkce_verifier');
-  sessionStorage.removeItem('pkce_verifier');
-  sessionStorage.removeItem('pkce_state');
-
-  const resp = await fetch('/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type:    'authorization_code',
-      code,
-      redirect_uri:  REDIRECT_URI,
-      client_id:     CLIENT_ID,
-      code_verifier: verifier,
-    }),
-  });
-
-  if (!resp.ok) {
-    showAuthSection();
-    showError('Token exchange failed — please try again.');
-    return false;
-  }
-
-  const tokens = await resp.json();
-  storeTokens(tokens);
-  window.history.replaceState({}, '', '/');
-  return true;
-}
-
-// ── UI state ──────────────────────────────────────────────────────────────────
+// ── Auth (server-side session cookie, set by /web/login → /web/callback) ──────
 
 function showAuthSection() {
   document.getElementById('auth-section').style.display = '';
@@ -449,10 +320,8 @@ function setupMic() {
       micBtn.textContent = '🎤';
       micBtn.classList.remove('recording');
 
-      // User clicked stop — aborted is expected, don't surface it.
       if (manualStop) { manualStop = false; return; }
 
-      // Aborted immediately after start = speech service not available in this browser.
       if (e.error === 'aborted' && Date.now() - startedAt < 500) {
         hideMicBtn('speech service unavailable');
         showResult('error', 'In-page dictation not supported here — use system dictation instead (macOS: press Fn twice).');
@@ -478,7 +347,6 @@ function setupMic() {
       recog && recog.stop();
       return;
     }
-    // Create a fresh instance each time (required on Safari).
     recog = newRecog();
     recog.start();
   });
@@ -491,27 +359,20 @@ async function submitNote() {
   const text = textarea.value.trim();
   if (!text) return;
 
-  const token = await getValidToken();
-  if (!token) { clearTokens(); showAuthSection(); return; }
-
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
   btn.textContent = 'Saving…';
 
-  // Hide previous result while saving.
   document.getElementById('result-area').style.display = 'none';
 
   try {
     const resp = await fetch('/capture', {
       method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer ' + token,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
 
-    if (resp.status === 401) { clearTokens(); showAuthSection(); return; }
+    if (resp.status === 401) { showAuthSection(); return; }
 
     const data = await resp.json();
     if (!resp.ok) {
@@ -547,27 +408,19 @@ function maybePreFillShare() {
   const shareTitle = params.get('share_title');
   const textarea = document.getElementById('note-input');
   textarea.value = 'link:' + shareURL + (shareTitle ? '  ' + shareTitle : '');
-  // Clean the URL so refreshing doesn't re-fill the textarea.
   window.history.replaceState({}, '', '/');
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 async function init() {
-  if (window.location.search.includes('code=')) {
-    const ok = await handleCallback();
-    if (ok) { showCaptureSection(); maybePreFillShare(); return; }
+  const resp = await fetch('/web/check');
+  if (resp.status === 401) {
     showAuthSection();
     return;
   }
-
-  const token = await getValidToken();
-  if (token) {
-    showCaptureSection();
-    maybePreFillShare();
-  } else {
-    showAuthSection();
-  }
+  showCaptureSection();
+  maybePreFillShare();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
