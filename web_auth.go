@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -22,6 +23,7 @@ import (
 const (
 	webCallbackURL = "https://engram.x1024.net/web/callback"
 	sessionTTL     = 30 * 24 * time.Hour
+	pendingLoginTTL = 10 * time.Minute
 )
 
 type webSession struct {
@@ -64,11 +66,11 @@ func (s *WebSessionStore) PopPending(state string) (string, bool) {
 	p, ok := s.pending[state]
 	delete(s.pending, state)
 	for k, v := range s.pending {
-		if time.Since(v.created) > 10*time.Minute {
+		if time.Since(v.created) > pendingLoginTTL {
 			delete(s.pending, k)
 		}
 	}
-	if !ok || time.Since(p.created) > 10*time.Minute {
+	if !ok || time.Since(p.created) > pendingLoginTTL {
 		return "", false
 	}
 	return p.verifier, true
@@ -190,12 +192,17 @@ func webLoginHandler(issuerURL, clientID string, sessions *WebSessionStore) http
 func webCallbackHandler(a *brain.App, issuerURL, clientID string, sessions *WebSessionStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if errParam := r.URL.Query().Get("error"); errParam != "" {
+			log.Printf("webCallback: IdP error %q: %s", errParam, r.URL.Query().Get("error_description"))
 			http.Error(w, fmt.Sprintf("auth error: %s", errParam), http.StatusBadRequest)
 			return
 		}
 
 		state := r.URL.Query().Get("state")
 		code := r.URL.Query().Get("code")
+		if state == "" || code == "" {
+			http.Error(w, "missing state or code", http.StatusBadRequest)
+			return
+		}
 
 		verifier, ok := sessions.PopPending(state)
 		if !ok {
@@ -210,7 +217,8 @@ func webCallbackHandler(a *brain.App, issuerURL, clientID string, sessions *WebS
 		form.Set("client_id", clientID)
 		form.Set("code_verifier", verifier)
 
-		resp, err := http.PostForm(issuerURL+"/api/oidc/token", form)
+		tokenClient := &http.Client{Timeout: 10 * time.Second}
+		resp, err := tokenClient.PostForm(issuerURL+"/api/oidc/token", form)
 		if err != nil {
 			http.Error(w, "token exchange failed", http.StatusBadGateway)
 			return
@@ -275,13 +283,16 @@ func clearSessionCookie(w http.ResponseWriter) {
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
 }
 
 func randomBase64url(n int) string {
 	b := make([]byte, n)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("crypto/rand.Read: %v", err))
+	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
@@ -292,6 +303,8 @@ func sha256Base64url(s string) string {
 
 func randomHex(n int) string {
 	b := make([]byte, n)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("crypto/rand.Read: %v", err))
+	}
 	return hex.EncodeToString(b)
 }
