@@ -23,10 +23,32 @@
   <script>
     async function load() {
       const r = await fetch('/tokens', { credentials: 'same-origin' });
-      if (!r.ok) { document.getElementById('list').innerHTML = '<li>Not signed in — <a href="/web/login">log in</a></li>'; return; }
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      if (!r.ok) {
+        const li = document.createElement('li');
+        li.innerHTML = 'Not signed in — <a href="/web/login">log in</a>';
+        list.appendChild(li);
+        return;
+      }
       const { tokens } = await r.json();
-      document.getElementById('list').innerHTML = tokens.map(t =>
-        `<li><span>${t.name}</span><button onclick="revoke('${t.id}')">Revoke</button></li>`).join('') || '<li>None yet</li>';
+      if (!tokens.length) {
+        const li = document.createElement('li');
+        li.textContent = 'None yet';
+        list.appendChild(li);
+        return;
+      }
+      for (const t of tokens) {
+        const li = document.createElement('li');
+        const span = document.createElement('span');
+        span.textContent = t.name;
+        const btn = document.createElement('button');
+        btn.textContent = 'Revoke';
+        btn.addEventListener('click', () => revoke(t.id));
+        li.appendChild(span);
+        li.appendChild(btn);
+        list.appendChild(li);
+      }
     }
     async function createToken() {
       const name = document.getElementById('name').value.trim();

@@ -52,9 +52,13 @@ func GetUserIDByTokenHash(ctx context.Context, pool *pgxpool.Pool, tokenHash str
 }
 
 // TouchAPIToken updates last_used_at to now for a token hash (best-effort).
+// The write is conditional: it is skipped when last_used_at was set within the
+// last 5 minutes, so the hot auth path does not write on every request.
 func TouchAPIToken(ctx context.Context, pool *pgxpool.Pool, tokenHash string) error {
 	_, err := pool.Exec(ctx, `
-		UPDATE api_tokens SET last_used_at = now() WHERE token_hash = $1
+		UPDATE api_tokens SET last_used_at = now()
+		WHERE token_hash = $1
+		  AND (last_used_at IS NULL OR last_used_at < now() - interval '5 minutes')
 	`, tokenHash)
 	if err != nil {
 		return fmt.Errorf("touch api token: %w", err)
