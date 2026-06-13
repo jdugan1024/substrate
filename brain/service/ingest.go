@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -34,14 +35,18 @@ type pgvectorVector = pgvector.Vector
 
 // IngestMessage is one normalized message in a transcript batch.
 type IngestMessage struct {
-	Role  string `json:"role"` // "human" | "assistant"
-	Text  string `json:"text"`
+	Role string `json:"role"` // "human" | "assistant"
+	Text string `json:"text"`
+	// Ts and MsgID are accepted from the wire but not persisted server-side;
+	// dedup uses captured_sessions.chunked_msg_count, not message ids. Reserved
+	// for the Part 2 daemon and possible future delta-shipping.
 	Ts    string `json:"ts"`
 	MsgID string `json:"msg_id"`
 }
 
 // IngestBatch is the full (trimmed) transcript for one session as sent by the
 // capture daemon. Messages SHOULD be the complete transcript in order.
+// Project is accepted but not yet persisted server-side (reserved).
 type IngestBatch struct {
 	Tool         string          `json:"tool"`
 	SessionID    string          `json:"session_id"`
@@ -168,13 +173,18 @@ func generateConversationSummary(ctx context.Context, client *http.Client, baseU
 	}
 	defer resp.Body.Close()
 
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return ConversationSummary{}, fmt.Errorf("summary API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
 	var result struct {
 		Choices []struct {
 			Message struct{ Content string } `json:"message"`
 		} `json:"choices"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return ConversationSummary{}, fmt.Errorf("decode summary response: %w", err)
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return ConversationSummary{}, fmt.Errorf("decode summary response: %w (body: %s)", err, string(respBody))
 	}
 	if len(result.Choices) == 0 {
 		return ConversationSummary{}, fmt.Errorf("empty choices in summary response")
@@ -271,8 +281,10 @@ func (s *IngestService) Ingest(ctx context.Context, batch IngestBatch) (IngestRe
 			if summaryText == "" {
 				summaryText = batch.Title
 			}
-			summaryEmbed, err = s.app.GetEmbedding(ctx, summaryText)
-			if err != nil {
+			if summaryText == "" {
+				// Nothing to embed or store — skip the summary this sweep.
+				doSummary = false
+			} else if summaryEmbed, err = s.app.GetEmbedding(ctx, summaryText); err != nil {
 				// Best-effort: never lose raw chunks because the summary embed failed.
 				doSummary = false
 			} else {
