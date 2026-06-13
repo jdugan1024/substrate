@@ -54,6 +54,9 @@ func InsertEntry(ctx context.Context, tx pgx.Tx, p InsertEntryParams) (string, e
 	if p.Entities == nil {
 		p.Entities = json.RawMessage("{}")
 	}
+	if p.Payload == nil {
+		p.Payload = json.RawMessage("{}")
+	}
 
 	var id string
 	err := tx.QueryRow(ctx, `
@@ -96,6 +99,9 @@ func UpdateEntryContent(ctx context.Context, tx pgx.Tx, p UpdateEntryContentPara
 	}
 	if p.Entities == nil {
 		p.Entities = json.RawMessage("{}")
+	}
+	if p.Payload == nil {
+		p.Payload = json.RawMessage("{}")
 	}
 	_, err := tx.Exec(ctx, `
 		UPDATE entries

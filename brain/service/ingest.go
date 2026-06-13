@@ -235,6 +235,13 @@ func (s *IngestService) Ingest(ctx context.Context, batch IngestBatch) (IngestRe
 	}
 
 	// 2. Determine new (not-yet-chunked) messages and pack them.
+	// The batch must be append-only: a transcript shorter than what we have
+	// already chunked means the daemon violated the contract (e.g. trimmed from
+	// the front), which would misalign the index — reject rather than corrupt.
+	if len(batch.Messages) < chunkedCount {
+		return IngestResult{}, fmt.Errorf("non-append-only batch for tool=%s session=%s: %d messages < %d already chunked",
+			batch.Tool, batch.SessionID, len(batch.Messages), chunkedCount)
+	}
 	newMsgs := []IngestMessage{}
 	if chunkedCount < len(batch.Messages) {
 		newMsgs = batch.Messages[chunkedCount:]
