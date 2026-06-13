@@ -78,6 +78,7 @@ func main() {
 	log.Println("OIDC verifier initialized")
 
 	es := service.NewEntryService(app)
+	ingestSvc := service.NewIngestService(app)
 
 	// Start background enrichment worker — retries failed link fetches and
 	// extracts full-text for richer semantic embeddings.
@@ -102,6 +103,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", authMiddleware(app, mcpHandler))
 	mux.Handle("/mcp/", authMiddleware(app, mcpHandler))
+	mux.Handle("POST /ingest", authMiddleware(app, http.HandlerFunc(ingestHandler(ingestSvc))))
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", oauthMetadataHandler(issuerURL, clientID))
 	mux.HandleFunc("POST /oauth/register", clientRegistrationHandler(clientID))
 	mux.HandleFunc("GET /oauth/authorize", oauthAuthorizeHandler(issuerURL, clientID))
