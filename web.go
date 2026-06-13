@@ -25,12 +25,19 @@ var webUI string
 //go:embed web/browse.html
 var browseUI string
 
+//go:embed web/tokens.html
+var tokensUI string
+
 // RegisterWebHandlers adds the web UI and capture endpoint to the mux.
 func RegisterWebHandlers(mux *http.ServeMux, a *brain.App, es *service.EntryService, sessions *WebSessionStore) {
 	mux.HandleFunc("/", serveWebUI())
 	mux.Handle("POST /capture", webAuthMiddleware(sessions, http.HandlerFunc(webCaptureHandler(a, es))))
 	mux.HandleFunc("GET /browse", serveBrowseUI())
 	mux.Handle("GET /entries", webAuthMiddleware(sessions, http.HandlerFunc(listEntriesHandler(a))))
+	mux.HandleFunc("GET /tokens.html", serveTokensUI())
+	mux.Handle("POST /tokens", webAuthMiddleware(sessions, http.HandlerFunc(createTokenHandler(a))))
+	mux.Handle("GET /tokens", webAuthMiddleware(sessions, http.HandlerFunc(listTokensHandler(a))))
+	mux.Handle("DELETE /tokens/{id}", webAuthMiddleware(sessions, http.HandlerFunc(revokeTokenHandler(a))))
 }
 
 func serveWebUI() http.HandlerFunc {
@@ -54,6 +61,14 @@ func serveBrowseUI() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		fmt.Fprint(w, browseUI)
+	}
+}
+
+func serveTokensUI() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		fmt.Fprint(w, tokensUI)
 	}
 }
 
