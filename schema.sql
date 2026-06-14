@@ -78,6 +78,25 @@ CREATE POLICY thoughts_user_isolation ON thoughts
         AND user_id = current_setting('app.current_user_id', true)::uuid
     );
 
+-- ---------------------------------------------------------------------------
+-- API Tokens
+-- Long-lived personal access tokens for headless clients (e.g. the capture
+-- daemon). Looked up by SHA-256 hash at auth time, before any user context
+-- exists, so this table has NO row-level security (like mcp_users). Handlers
+-- that create/list/revoke tokens filter by user_id explicitly.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID        NOT NULL REFERENCES mcp_users(id) ON DELETE CASCADE,
+    name         TEXT        NOT NULL,
+    token_hash   TEXT        NOT NULL UNIQUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used_at TIMESTAMPTZ,
+    revoked_at   TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens (user_id);
+
 -- mcp_users is readable by the app role but not subject to per-user RLS
 -- (the server needs to look up any user by oidc_subject at auth time).
 
@@ -168,3 +187,38 @@ DROP TRIGGER IF EXISTS entries_updated_at ON entries;
 CREATE TRIGGER entries_updated_at
     BEFORE UPDATE ON entries
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Captured Sessions
+-- Tracks live-captured LLM conversations per (user, tool, session_id).
+-- chunked_msg_count = how many transcript messages have been folded into
+-- emitted raw chunk entries (dedup high-water mark). summary_entry_id points
+-- at the single upserted conversation.summary entry for the session.
+-- Separate from conversation_imports (batch Claude Desktop export path).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS captured_sessions (
+    user_id            UUID        NOT NULL REFERENCES mcp_users(id) ON DELETE CASCADE,
+    tool               TEXT        NOT NULL,
+    session_id         TEXT        NOT NULL,
+    summary_entry_id   UUID        REFERENCES entries(id) ON DELETE SET NULL,
+    chunked_msg_count  INT         NOT NULL DEFAULT 0,
+    message_count      INT         NOT NULL DEFAULT 0,
+    session_started_at TIMESTAMPTZ,
+    session_ended_at   TIMESTAMPTZ,
+    last_summarized_at TIMESTAMPTZ,
+    last_ingested_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, tool, session_id)
+);
+
+ALTER TABLE captured_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY captured_sessions_user_isolation ON captured_sessions
+    FOR ALL
+    USING (
+        current_setting('app.current_user_id', true) IS NOT NULL
+        AND user_id = current_setting('app.current_user_id', true)::uuid
+    )
+    WITH CHECK (
+        current_setting('app.current_user_id', true) IS NOT NULL
+        AND user_id = current_setting('app.current_user_id', true)::uuid
+    );

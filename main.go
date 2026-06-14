@@ -20,6 +20,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"open-brain-go/brain"
+	"open-brain-go/brain/repository"
 	"open-brain-go/brain/service"
 	"open-brain-go/core"
 	"open-brain-go/extensions/calendar"
@@ -77,6 +78,7 @@ func main() {
 	log.Println("OIDC verifier initialized")
 
 	es := service.NewEntryService(app)
+	ingestSvc := service.NewIngestService(app)
 
 	// Start background enrichment worker — retries failed link fetches and
 	// extracts full-text for richer semantic embeddings.
@@ -101,6 +103,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", authMiddleware(app, mcpHandler))
 	mux.Handle("/mcp/", authMiddleware(app, mcpHandler))
+	mux.Handle("POST /ingest", authMiddleware(app, http.HandlerFunc(ingestHandler(ingestSvc))))
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", oauthMetadataHandler(issuerURL, clientID))
 	mux.HandleFunc("POST /oauth/register", clientRegistrationHandler(clientID))
 	mux.HandleFunc("GET /oauth/authorize", oauthAuthorizeHandler(issuerURL, clientID))
@@ -129,6 +132,21 @@ func authMiddleware(a *brain.App, next http.Handler) http.Handler {
 			return
 		}
 		rawToken := strings.TrimPrefix(auth, "Bearer ")
+
+		// Personal access token path: headless clients (e.g. the capture daemon)
+		// send a token with the engram_pat_ prefix. Resolve it directly without OIDC.
+		if strings.HasPrefix(rawToken, tokenPrefix) {
+			tokenHash := hashAPIToken(rawToken)
+			userID, err := repository.GetUserIDByTokenHash(r.Context(), a.Pool, tokenHash)
+			if err != nil || userID == "" {
+				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+				return
+			}
+			_ = repository.TouchAPIToken(r.Context(), a.Pool, tokenHash)
+			ctx := context.WithValue(r.Context(), brain.CtxUserID, userID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		}
 
 		subject, err := a.OIDC.Verify(r.Context(), rawToken)
 		if err != nil {

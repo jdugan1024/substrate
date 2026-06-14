@@ -54,6 +54,9 @@ func InsertEntry(ctx context.Context, tx pgx.Tx, p InsertEntryParams) (string, e
 	if p.Entities == nil {
 		p.Entities = json.RawMessage("{}")
 	}
+	if p.Payload == nil {
+		p.Payload = json.RawMessage("{}")
+	}
 
 	var id string
 	err := tx.QueryRow(ctx, `
@@ -74,6 +77,41 @@ func InsertEntry(ctx context.Context, tx pgx.Tx, p InsertEntryParams) (string, e
 		return "", fmt.Errorf("insert entry: %w", err)
 	}
 	return id, nil
+}
+
+// UpdateEntryContentParams holds fields for re-writing an existing entry's
+// content (used to upsert a conversation summary as it is regenerated).
+type UpdateEntryContentParams struct {
+	EntryID     string
+	ContentText string
+	Payload     json.RawMessage
+	Tags        []string
+	Entities    json.RawMessage
+	Embedding   *pgvector.Vector
+}
+
+// UpdateEntryContent rewrites an existing entry's content, payload, tags,
+// entities, and embedding inside a transaction. RLS scopes the row to the
+// current user. The entries_updated_at trigger refreshes updated_at.
+func UpdateEntryContent(ctx context.Context, tx pgx.Tx, p UpdateEntryContentParams) error {
+	if p.Tags == nil {
+		p.Tags = []string{}
+	}
+	if p.Entities == nil {
+		p.Entities = json.RawMessage("{}")
+	}
+	if p.Payload == nil {
+		p.Payload = json.RawMessage("{}")
+	}
+	_, err := tx.Exec(ctx, `
+		UPDATE entries
+		SET content_text = $2, payload = $3, tags = $4, entities = $5, embedding = $6
+		WHERE id = $1::uuid
+	`, p.EntryID, p.ContentText, p.Payload, p.Tags, p.Entities, p.Embedding)
+	if err != nil {
+		return fmt.Errorf("update entry content: %w", err)
+	}
+	return nil
 }
 
 // SearchEntriesParams holds filters for cross-domain semantic search.

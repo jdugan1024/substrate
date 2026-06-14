@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Engram — Capture Tokens</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+    input, button { font-size: 1rem; padding: 0.4rem; }
+    .token { background: #f4f4f4; padding: 0.6rem; border-radius: 4px; font-family: monospace; word-break: break-all; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <h1>Capture Tokens</h1>
+  <p>Create a personal access token for the capture daemon. The token is shown only once.</p>
+  <input id="name" placeholder="token name (e.g. laptop)">
+  <button onclick="createToken()">Create</button>
+  <div id="new" class="token" style="display:none"></div>
+  <h2>Active tokens</h2>
+  <ul id="list"></ul>
+  <script>
+    async function load() {
+      const r = await fetch('/tokens', { credentials: 'same-origin' });
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      if (!r.ok) {
+        const li = document.createElement('li');
+        li.innerHTML = 'Not signed in — <a href="/web/login">log in</a>';
+        list.appendChild(li);
+        return;
+      }
+      const { tokens } = await r.json();
+      if (!tokens.length) {
+        const li = document.createElement('li');
+        li.textContent = 'None yet';
+        list.appendChild(li);
+        return;
+      }
+      for (const t of tokens) {
+        const li = document.createElement('li');
+        const span = document.createElement('span');
+        span.textContent = t.name;
+        const btn = document.createElement('button');
+        btn.textContent = 'Revoke';
+        btn.addEventListener('click', () => revoke(t.id));
+        li.appendChild(span);
+        li.appendChild(btn);
+        list.appendChild(li);
+      }
+    }
+    async function createToken() {
+      const name = document.getElementById('name').value.trim();
+      if (!name) return;
+      const r = await fetch('/tokens', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      if (!r.ok) { alert('failed'); return; }
+      const { token } = await r.json();
+      const el = document.getElementById('new');
+      el.style.display = 'block';
+      el.textContent = token;
+      document.getElementById('name').value = '';
+      load();
+    }
+    async function revoke(id) {
+      await fetch('/tokens/' + id, { method: 'DELETE', credentials: 'same-origin' });
+      load();
+    }
+    load();
+  </script>
+</body>
+</html>
