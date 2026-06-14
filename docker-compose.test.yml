@@ -1,0 +1,47 @@
+# Isolated smoke-test stack for the live-capture branch.
+# Run with a distinct project name so it never touches the live `engram` stack:
+#   sops exec-env secrets/engram.env \
+#     'docker compose -p engram-test -f docker-compose.test.yml up -d --build'
+# Tear down (wipes the test DB volume):
+#   docker compose -p engram-test -f docker-compose.test.yml down -v
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: openbrain
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/01-init.sh
+      - ./schema.sql:/docker-entrypoint-initdb.d/10-core-schema.sql
+      - ./extensions/household/schema.sql:/docker-entrypoint-initdb.d/20-household.sql
+      - ./extensions/maintenance/schema.sql:/docker-entrypoint-initdb.d/21-maintenance.sql
+      - ./extensions/calendar/schema.sql:/docker-entrypoint-initdb.d/22-calendar.sql
+      - ./extensions/meals/schema.sql:/docker-entrypoint-initdb.d/23-meals.sql
+      - ./extensions/crm/schema.sql:/docker-entrypoint-initdb.d/24-crm.sql
+      - ./extensions/jobhunt/schema.sql:/docker-entrypoint-initdb.d/25-jobhunt.sql
+      - ./docker/post-schema-grants.sh:/docker-entrypoint-initdb.d/90-grants.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d openbrain"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://app_user:${APP_USER_PASSWORD}@db:5432/openbrain
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      AUTHELIA_ISSUER_URL: https://auth.x1024.net
+      OIDC_CLIENT_ID: engram
+      PORT: "8080"
+    ports:
+      - "127.0.0.1:8088:8080"
+
+volumes:
+  pgdata:
