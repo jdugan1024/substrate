@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +14,8 @@ type Config struct {
 	PAT           string
 	StatePath     string
 	ClaudeRoots   []string
+	Machine       string
+	Username      string
 	SweepInterval time.Duration
 	Debounce      time.Duration
 	EndedAfter    time.Duration
@@ -29,6 +32,8 @@ func DefaultConfig() Config {
 		PAT:           os.Getenv("ENGRAM_PAT"),
 		StatePath:     filepath.Join(home, ".local", "state", "engram-capture", "state.json"),
 		ClaudeRoots:   []string{filepath.Join(home, ".claude", "projects")},
+		Machine:       envDefault("ENGRAM_CAPTURE_MACHINE", defaultHostname()),
+		Username:      envDefault("ENGRAM_CAPTURE_USERNAME", defaultUsername()),
 		SweepInterval: 30 * time.Second,
 		Debounce:      2 * time.Second,
 		EndedAfter:    10 * time.Minute,
@@ -54,4 +59,23 @@ func envDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func defaultHostname() string {
+	name, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return name
+}
+
+func defaultUsername() string {
+	u, err := user.Current()
+	if err != nil || u == nil {
+		return ""
+	}
+	if u.Username != "" {
+		return u.Username
+	}
+	return u.Name
 }

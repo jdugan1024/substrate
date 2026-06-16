@@ -46,12 +46,13 @@ type IngestMessage struct {
 
 // IngestBatch is the full (trimmed) transcript for one session as sent by the
 // capture daemon. Messages SHOULD be the complete transcript in order.
-// Project is accepted but not yet persisted server-side (reserved).
 type IngestBatch struct {
 	Tool         string          `json:"tool"`
 	SessionID    string          `json:"session_id"`
 	Title        string          `json:"title"`
 	Project      string          `json:"project"`
+	Machine      string          `json:"machine"`
+	Username     string          `json:"username"`
 	Messages     []IngestMessage `json:"messages"`
 	SessionEnded bool            `json:"session_ended"`
 }
@@ -126,6 +127,30 @@ func renderTranscript(msgs []IngestMessage) string {
 		b.WriteString(m.Text)
 	}
 	return b.String()
+}
+
+func buildConversationEntities(batch IngestBatch, seq ...int) json.RawMessage {
+	entities := map[string]any{
+		"tool":       batch.Tool,
+		"session_id": batch.SessionID,
+	}
+	if len(seq) > 0 {
+		entities["seq"] = seq[0]
+	}
+	if batch.Title != "" {
+		entities["title"] = batch.Title
+	}
+	if batch.Project != "" {
+		entities["project"] = batch.Project
+	}
+	if batch.Machine != "" {
+		entities["machine"] = batch.Machine
+	}
+	if batch.Username != "" {
+		entities["username"] = batch.Username
+	}
+	raw, _ := json.Marshal(entities)
+	return raw
 }
 
 // ConversationSummary is the structured distillation of a session.
@@ -263,9 +288,7 @@ func (s *IngestService) Ingest(ctx context.Context, batch IngestBatch) (IngestRe
 		if err != nil {
 			return IngestResult{}, fmt.Errorf("embed chunk: %w", err)
 		}
-		ent, _ := json.Marshal(map[string]any{
-			"tool": batch.Tool, "session_id": batch.SessionID, "seq": seq,
-		})
+		ent := buildConversationEntities(batch, seq)
 		toInsert = append(toInsert, chunkInsert{text: text, seq: seq, embed: emb, entities: ent})
 		seq += len(c)
 	}
@@ -296,9 +319,7 @@ func (s *IngestService) Ingest(ctx context.Context, batch IngestBatch) (IngestRe
 				doSummary = false
 			} else {
 				summaryPayload, _ = json.Marshal(cs)
-				summaryEntities, _ = json.Marshal(map[string]any{
-					"tool": batch.Tool, "session_id": batch.SessionID, "title": batch.Title,
-				})
+				summaryEntities = buildConversationEntities(batch)
 				summaryTags = cs.Topics
 			}
 		}

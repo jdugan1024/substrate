@@ -18,6 +18,8 @@ func main() {
 	flag.StringVar(&cfg.BaseURL, "url", cfg.BaseURL, "Engram base URL")
 	flag.StringVar(&cfg.StatePath, "state", cfg.StatePath, "local state JSON path")
 	flag.StringVar(&claudeRoots, "claude-root", strings.Join(cfg.ClaudeRoots, string(os.PathListSeparator)), "Claude Code transcript root(s), path-list separated")
+	flag.StringVar(&cfg.Machine, "machine", cfg.Machine, "source machine name")
+	flag.StringVar(&cfg.Username, "username", cfg.Username, "source username")
 	flag.DurationVar(&cfg.SweepInterval, "sweep-interval", cfg.SweepInterval, "periodic scan interval")
 	flag.DurationVar(&cfg.Debounce, "debounce", cfg.Debounce, "watch debounce interval")
 	flag.DurationVar(&cfg.EndedAfter, "ended-after", cfg.EndedAfter, "mark sessions ended after file idle duration")
@@ -43,6 +45,8 @@ func main() {
 		State:      state,
 		Poster:     NewIngestClient(cfg.BaseURL, cfg.PAT, &http.Client{Timeout: 30 * time.Second}),
 		Trim:       cfg.Trim,
+		Machine:    cfg.Machine,
+		Username:   cfg.Username,
 		EndedAfter: cfg.EndedAfter,
 		Now:        time.Now,
 		DryRun:     cfg.DryRun,

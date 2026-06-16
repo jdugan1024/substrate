@@ -17,7 +17,7 @@ func TestBuildIngestBatch_TrimsLongMessagesAndSetsEnded(t *testing.T) {
 		},
 	}
 
-	batch := BuildIngestBatch(tr, TrimConfig{MaxMessageBytes: 40}, time.Now(), 10*time.Minute)
+	batch := BuildIngestBatch(tr, TrimConfig{MaxMessageBytes: 40}, time.Now(), 10*time.Minute, "", "")
 
 	if !batch.SessionEnded {
 		t.Fatalf("expected session ended by age")
@@ -30,5 +30,24 @@ func TestBuildIngestBatch_TrimsLongMessagesAndSetsEnded(t *testing.T) {
 	}
 	if batch.Messages[0].Ts != "2026-06-13T18:55:22Z" {
 		t.Fatalf("timestamp = %q", batch.Messages[0].Ts)
+	}
+}
+
+func TestBuildIngestBatch_IncludesSourceMetadata(t *testing.T) {
+	tr := Transcript{
+		Tool: "claude-code", SessionID: "s1", Title: "title", Project: "/repo",
+		Messages: []Message{{Role: "human", Text: "short", MsgID: "m1"}},
+	}
+
+	batch := BuildIngestBatch(tr, TrimConfig{MaxMessageBytes: 40}, time.Now(), 10*time.Minute, "laptop", "jdugan")
+
+	if batch.Project != "/repo" {
+		t.Fatalf("project = %q", batch.Project)
+	}
+	if batch.Machine != "laptop" {
+		t.Fatalf("machine = %q", batch.Machine)
+	}
+	if batch.Username != "jdugan" {
+		t.Fatalf("username = %q", batch.Username)
 	}
 }

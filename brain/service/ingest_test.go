@@ -98,6 +98,35 @@ func TestRenderTranscript(t *testing.T) {
 	}
 }
 
+func TestConversationEntitiesIncludeSourceMetadata(t *testing.T) {
+	got := buildConversationEntities(IngestBatch{
+		Tool:      "claude-code",
+		SessionID: "s1",
+		Title:     "title",
+		Project:   "/repo",
+		Machine:   "laptop",
+		Username:  "jdugan",
+	}, 12)
+
+	var decoded map[string]any
+	if err := json.Unmarshal(got, &decoded); err != nil {
+		t.Fatalf("unmarshal entities: %v", err)
+	}
+	for key, want := range map[string]any{
+		"tool":       "claude-code",
+		"session_id": "s1",
+		"title":      "title",
+		"project":    "/repo",
+		"machine":    "laptop",
+		"username":   "jdugan",
+		"seq":        float64(12),
+	} {
+		if decoded[key] != want {
+			t.Fatalf("%s = %#v, want %#v in %#v", key, decoded[key], want, decoded)
+		}
+	}
+}
+
 func TestGenerateConversationSummary(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{

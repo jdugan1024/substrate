@@ -14,7 +14,7 @@ func DefaultTrimConfig() TrimConfig {
 	return TrimConfig{MaxMessageBytes: 64 * 1024}
 }
 
-func BuildIngestBatch(tr Transcript, cfg TrimConfig, now time.Time, endedAfter time.Duration) IngestBatch {
+func BuildIngestBatch(tr Transcript, cfg TrimConfig, now time.Time, endedAfter time.Duration, machine, username string) IngestBatch {
 	msgs := make([]IngestMessage, 0, len(tr.Messages))
 	for _, msg := range tr.Messages {
 		text := trimMessage(msg, cfg)
@@ -33,6 +33,8 @@ func BuildIngestBatch(tr Transcript, cfg TrimConfig, now time.Time, endedAfter t
 		SessionID:    tr.SessionID,
 		Title:        tr.Title,
 		Project:      tr.Project,
+		Machine:      machine,
+		Username:     username,
 		Messages:     msgs,
 		SessionEnded: !tr.ModTime.IsZero() && now.Sub(tr.ModTime) >= endedAfter,
 	}

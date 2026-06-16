@@ -44,6 +44,8 @@ type IngestBatch struct {
 	SessionID    string          `json:"session_id"`
 	Title        string          `json:"title"`
 	Project      string          `json:"project"`
+	Machine      string          `json:"machine"`
+	Username     string          `json:"username"`
 	Messages     []IngestMessage `json:"messages"`
 	SessionEnded bool            `json:"session_ended"`
 }

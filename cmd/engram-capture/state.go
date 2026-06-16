@@ -72,6 +72,12 @@ func stateKey(tool, sessionID string) string {
 
 func batchHash(batch IngestBatch) string {
 	h := sha256.New()
+	h.Write([]byte(batch.Project))
+	h.Write([]byte{0})
+	h.Write([]byte(batch.Machine))
+	h.Write([]byte{0})
+	h.Write([]byte(batch.Username))
+	h.Write([]byte{0})
 	for _, msg := range batch.Messages {
 		h.Write([]byte(msg.Role))
 		h.Write([]byte{0})

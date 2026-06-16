@@ -17,6 +17,8 @@ type Runner struct {
 	State      *StateStore
 	Poster     Poster
 	Trim       TrimConfig
+	Machine    string
+	Username   string
 	EndedAfter time.Duration
 	Now        func() time.Time
 	DryRun     bool
@@ -44,7 +46,7 @@ func (r Runner) ScanOnce(ctx context.Context) (DryRunStats, error) {
 			if len(tr.Messages) == 0 {
 				continue
 			}
-			batch := BuildIngestBatch(tr, r.Trim, now(), r.EndedAfter)
+			batch := BuildIngestBatch(tr, r.Trim, now(), r.EndedAfter, r.Machine, r.Username)
 			stats.Sessions++
 			stats.Messages += len(batch.Messages)
 			stats.EstimatedBytes += estimateBatchBytes(batch)
