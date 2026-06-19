@@ -36,12 +36,44 @@ type ThoughtMetadata struct {
 // App holds shared dependencies available to all extensions.
 type App struct {
 	Pool          *pgxpool.Pool
+	AdminPool     *pgxpool.Pool
 	OpenRouterKey string
 	OIDC          *OIDCVerifier
 }
 
+// adminPool returns the pool used for RLS-bypassing system transactions.
+// It prefers a dedicated BYPASSRLS-capable pool (AdminPool) and falls back to
+// the main Pool when none is configured, preserving prior behavior.
+func (a *App) adminPool() *pgxpool.Pool {
+	if a.AdminPool != nil {
+		return a.AdminPool
+	}
+	return a.Pool
+}
+
 // New creates an App, connecting to Postgres with pgvector type registration.
 func New(ctx context.Context, dbURL, openRouterKey string) (*App, error) {
+	pool, err := newPool(ctx, dbURL)
+	if err != nil {
+		return nil, err
+	}
+	return &App{Pool: pool, OpenRouterKey: openRouterKey}, nil
+}
+
+// ConnectAdminPool connects the dedicated, RLS-bypassing pool used by
+// WithAdminTx (e.g. the EnrichmentWorker). The role behind adminURL must have
+// the BYPASSRLS attribute. When unset, WithAdminTx falls back to the main pool.
+func (a *App) ConnectAdminPool(ctx context.Context, adminURL string) error {
+	pool, err := newPool(ctx, adminURL)
+	if err != nil {
+		return err
+	}
+	a.AdminPool = pool
+	return nil
+}
+
+// newPool builds a pgx pool with pgvector type registration and verifies it.
+func newPool(ctx context.Context, dbURL string) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse db config: %w", err)
@@ -57,8 +89,7 @@ func New(ctx context.Context, dbURL, openRouterKey string) (*App, error) {
 	if err := pool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
-
-	return &App{Pool: pool, OpenRouterKey: openRouterKey}, nil
+	return pool, nil
 }
 
 // WithUserTx begins a transaction scoped to the authenticated user via SET LOCAL,
@@ -88,7 +119,7 @@ func (a *App) WithUserTx(ctx context.Context, fn func(pgx.Tx) error) error {
 // Requires the database role to have the BYPASSRLS attribute or be the
 // table owner. Used exclusively by the EnrichmentWorker.
 func (a *App) WithAdminTx(ctx context.Context, fn func(pgx.Tx) error) error {
-	tx, err := a.Pool.Begin(ctx)
+	tx, err := a.adminPool().Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
