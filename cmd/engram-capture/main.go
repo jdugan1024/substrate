@@ -15,9 +15,11 @@ func main() {
 	cfg := DefaultConfig()
 
 	var claudeRoots string
+	var codexRoots string
 	flag.StringVar(&cfg.BaseURL, "url", cfg.BaseURL, "Engram base URL")
 	flag.StringVar(&cfg.StatePath, "state", cfg.StatePath, "local state JSON path")
 	flag.StringVar(&claudeRoots, "claude-root", strings.Join(cfg.ClaudeRoots, string(os.PathListSeparator)), "Claude Code transcript root(s), path-list separated")
+	flag.StringVar(&codexRoots, "codex-root", strings.Join(cfg.CodexRoots, string(os.PathListSeparator)), "Codex transcript root(s), path-list separated")
 	flag.StringVar(&cfg.Machine, "machine", cfg.Machine, "source machine name")
 	flag.StringVar(&cfg.Username, "username", cfg.Username, "source username")
 	flag.DurationVar(&cfg.SweepInterval, "sweep-interval", cfg.SweepInterval, "periodic scan interval")
@@ -30,6 +32,7 @@ func main() {
 	flag.Parse()
 
 	cfg.ClaudeRoots = filepathList(claudeRoots)
+	cfg.CodexRoots = filepathList(codexRoots)
 	if err := cfg.Validate(); err != nil {
 		log.Fatal(err)
 	}
@@ -40,8 +43,11 @@ func main() {
 	}
 
 	runner := Runner{
-		Parsers:    []Parser{ClaudeCodeParser{}},
-		Roots:      map[string][]string{ToolClaudeCode: cfg.ClaudeRoots},
+		Parsers: []Parser{ClaudeCodeParser{}, CodexParser{}},
+		Roots: map[string][]string{
+			ToolClaudeCode: cfg.ClaudeRoots,
+			ToolCodex:      cfg.CodexRoots,
+		},
 		State:      state,
 		Poster:     NewIngestClient(cfg.BaseURL, cfg.PAT, &http.Client{Timeout: 30 * time.Second}),
 		Trim:       cfg.Trim,

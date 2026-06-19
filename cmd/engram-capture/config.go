@@ -14,6 +14,7 @@ type Config struct {
 	PAT           string
 	StatePath     string
 	ClaudeRoots   []string
+	CodexRoots    []string
 	Machine       string
 	Username      string
 	SweepInterval time.Duration
@@ -32,6 +33,7 @@ func DefaultConfig() Config {
 		PAT:           os.Getenv("ENGRAM_PAT"),
 		StatePath:     filepath.Join(home, ".local", "state", "engram-capture", "state.json"),
 		ClaudeRoots:   []string{filepath.Join(home, ".claude", "projects")},
+		CodexRoots:    []string{filepath.Join(home, ".codex", "sessions")},
 		Machine:       envDefault("ENGRAM_CAPTURE_MACHINE", defaultHostname()),
 		Username:      envDefault("ENGRAM_CAPTURE_USERNAME", defaultUsername()),
 		SweepInterval: 30 * time.Second,
