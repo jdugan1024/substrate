@@ -102,6 +102,10 @@ func (p CodexParser) ParseFile(ctx context.Context, path string) (Transcript, er
 			if tr.Title == "" && role == "human" {
 				tr.Title = firstLine(text)
 			}
+			// Codex records carry no per-message id, so MsgID is a running index
+			// of emitted messages. It is not used for dedup (the daemon dedups on
+			// content hash + count, the server on chunked_msg_count), only sent
+			// for parity with other tools.
 			tr.Messages = append(tr.Messages, Message{
 				Role:  role,
 				Text:  text,
@@ -136,6 +140,9 @@ type codexSessionMeta struct {
 	Source         json.RawMessage `json:"source"`
 }
 
+// codexContentBlock is a block within a message payload's content array. Text is
+// taken regardless of block type (input_text / output_text), so Type is parsed
+// for wire-shape documentation only.
 type codexContentBlock struct {
 	Type string `json:"type"`
 	Text string `json:"text"`
