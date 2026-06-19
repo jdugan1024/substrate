@@ -1,0 +1,2 @@
+{"parentUuid":null,"isSidechain":true,"agentId":"deadbeef12345678","type":"user","message":{"role":"user","content":"Implement the streaming parser as described."},"uuid":"su1","timestamp":"2026-06-13T18:55:22.395Z","cwd":"/home/jdugan/engram","sessionId":"parent-xyz-999"}
+{"parentUuid":"su1","isSidechain":true,"agentId":"deadbeef12345678","type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Done implementing the streaming parser."}]},"uuid":"sa1","timestamp":"2026-06-13T18:55:25.951Z","cwd":"/home/jdugan/engram","sessionId":"parent-xyz-999"}

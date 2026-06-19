@@ -60,6 +60,7 @@ func (p ClaudeCodeParser) ParseFile(ctx context.Context, path string) (Transcrip
 	}
 
 	tr := Transcript{Tool: p.Tool(), Path: path, ModTime: st.ModTime()}
+	var agentID string
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 
@@ -77,6 +78,9 @@ func (p ClaudeCodeParser) ParseFile(ctx context.Context, path string) (Transcrip
 		if tr.SessionID == "" {
 			tr.SessionID = rec.SessionID
 		}
+		if agentID == "" {
+			agentID = rec.AgentID
+		}
 		if tr.Project == "" {
 			tr.Project = rec.CWD
 		}
@@ -93,6 +97,19 @@ func (p ClaudeCodeParser) ParseFile(ctx context.Context, path string) (Transcrip
 	if err := scanner.Err(); err != nil {
 		return Transcript{}, err
 	}
+
+	// A subagent (Task tool) transcript carries the parent's sessionId on every
+	// record plus its own agentId. Promote it to a standalone session keyed on
+	// the agentId and link it to the parent so the two stay associated. Prefer
+	// the sibling .meta.json description as the title since it names the task.
+	if agentID != "" {
+		tr.ParentSessionID = tr.SessionID
+		tr.SessionID = agentID
+		if desc := subagentDescription(path); desc != "" {
+			tr.Title = desc
+		}
+	}
+
 	if tr.SessionID == "" {
 		tr.SessionID = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	}
@@ -102,11 +119,30 @@ func (p ClaudeCodeParser) ParseFile(ctx context.Context, path string) (Transcrip
 	return tr, nil
 }
 
+// subagentDescription reads the human-readable task description from the sibling
+// <agent>.meta.json file written alongside a subagent transcript. Returns "" if
+// the file is absent or unreadable.
+func subagentDescription(jsonlPath string) string {
+	metaPath := strings.TrimSuffix(jsonlPath, filepath.Ext(jsonlPath)) + ".meta.json"
+	b, err := os.ReadFile(metaPath)
+	if err != nil {
+		return ""
+	}
+	var meta struct {
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal(b, &meta); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(meta.Description)
+}
+
 type claudeCodeRecord struct {
 	Type      string          `json:"type"`
 	UUID      string          `json:"uuid"`
 	Timestamp string          `json:"timestamp"`
 	SessionID string          `json:"sessionId"`
+	AgentID   string          `json:"agentId"`
 	CWD       string          `json:"cwd"`
 	Message   json.RawMessage `json:"message"`
 }

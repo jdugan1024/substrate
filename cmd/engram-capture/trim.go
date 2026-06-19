@@ -29,14 +29,15 @@ func BuildIngestBatch(tr Transcript, cfg TrimConfig, now time.Time, endedAfter t
 		})
 	}
 	return IngestBatch{
-		Tool:         tr.Tool,
-		SessionID:    tr.SessionID,
-		Title:        tr.Title,
-		Project:      tr.Project,
-		Machine:      machine,
-		Username:     username,
-		Messages:     msgs,
-		SessionEnded: !tr.ModTime.IsZero() && now.Sub(tr.ModTime) >= endedAfter,
+		Tool:            tr.Tool,
+		SessionID:       tr.SessionID,
+		ParentSessionID: tr.ParentSessionID,
+		Title:           tr.Title,
+		Project:         tr.Project,
+		Machine:         machine,
+		Username:        username,
+		Messages:        msgs,
+		SessionEnded:    !tr.ModTime.IsZero() && now.Sub(tr.ModTime) >= endedAfter,
 	}
 }
 
