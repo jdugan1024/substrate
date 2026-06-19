@@ -65,6 +65,19 @@ func main() {
 	defer app.Pool.Close()
 	log.Println("Connected to database")
 
+	// Dedicated BYPASSRLS pool for the enrichment worker's cross-user scans.
+	// Without it, WithAdminTx falls back to the app_user pool, which cannot
+	// disable row_security and fails with SQLSTATE 42501.
+	if adminURL := os.Getenv("ENRICHMENT_DATABASE_URL"); adminURL != "" {
+		if err := app.ConnectAdminPool(ctx, adminURL); err != nil {
+			log.Fatalf("init admin pool: %v", err)
+		}
+		defer app.AdminPool.Close()
+		log.Println("Connected enrichment worker pool (BYPASSRLS)")
+	} else {
+		log.Println("ENRICHMENT_DATABASE_URL not set; enrichment worker will share the app pool and cannot bypass RLS")
+	}
+
 	issuerURL := os.Getenv("AUTHELIA_ISSUER_URL")
 	clientID := os.Getenv("OIDC_CLIENT_ID")
 	if issuerURL == "" || clientID == "" {
