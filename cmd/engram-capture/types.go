@@ -23,13 +23,14 @@ type Message struct {
 }
 
 type Transcript struct {
-	Tool      string
-	SessionID string
-	Title     string
-	Project   string
-	Path      string
-	ModTime   time.Time
-	Messages  []Message
+	Tool            string
+	SessionID       string
+	ParentSessionID string
+	Title           string
+	Project         string
+	Path            string
+	ModTime         time.Time
+	Messages        []Message
 }
 
 type IngestMessage struct {
@@ -40,14 +41,15 @@ type IngestMessage struct {
 }
 
 type IngestBatch struct {
-	Tool         string          `json:"tool"`
-	SessionID    string          `json:"session_id"`
-	Title        string          `json:"title"`
-	Project      string          `json:"project"`
-	Machine      string          `json:"machine"`
-	Username     string          `json:"username"`
-	Messages     []IngestMessage `json:"messages"`
-	SessionEnded bool            `json:"session_ended"`
+	Tool            string          `json:"tool"`
+	SessionID       string          `json:"session_id"`
+	ParentSessionID string          `json:"parent_session_id,omitempty"`
+	Title           string          `json:"title"`
+	Project         string          `json:"project"`
+	Machine         string          `json:"machine"`
+	Username        string          `json:"username"`
+	Messages        []IngestMessage `json:"messages"`
+	SessionEnded    bool            `json:"session_ended"`
 }
 
 type IngestResult struct {

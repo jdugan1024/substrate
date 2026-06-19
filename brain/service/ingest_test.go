@@ -127,6 +127,35 @@ func TestConversationEntitiesIncludeSourceMetadata(t *testing.T) {
 	}
 }
 
+func TestConversationEntitiesIncludeParentSession(t *testing.T) {
+	got := buildConversationEntities(IngestBatch{
+		Tool:            "claude-code",
+		SessionID:       "agent-abc",
+		ParentSessionID: "parent-xyz",
+		Title:           "subagent task",
+	})
+
+	var decoded map[string]any
+	if err := json.Unmarshal(got, &decoded); err != nil {
+		t.Fatalf("unmarshal entities: %v", err)
+	}
+	if decoded["parent_session_id"] != "parent-xyz" {
+		t.Fatalf("parent_session_id = %#v, want %q in %#v", decoded["parent_session_id"], "parent-xyz", decoded)
+	}
+}
+
+func TestConversationEntitiesOmitEmptyParentSession(t *testing.T) {
+	got := buildConversationEntities(IngestBatch{Tool: "claude-code", SessionID: "s1"})
+
+	var decoded map[string]any
+	if err := json.Unmarshal(got, &decoded); err != nil {
+		t.Fatalf("unmarshal entities: %v", err)
+	}
+	if _, present := decoded["parent_session_id"]; present {
+		t.Fatalf("parent_session_id should be absent for top-level sessions, got %#v", decoded)
+	}
+}
+
 func TestGenerateConversationSummary(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{

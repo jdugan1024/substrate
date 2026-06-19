@@ -47,14 +47,17 @@ type IngestMessage struct {
 // IngestBatch is the full (trimmed) transcript for one session as sent by the
 // capture daemon. Messages SHOULD be the complete transcript in order.
 type IngestBatch struct {
-	Tool         string          `json:"tool"`
-	SessionID    string          `json:"session_id"`
-	Title        string          `json:"title"`
-	Project      string          `json:"project"`
-	Machine      string          `json:"machine"`
-	Username     string          `json:"username"`
-	Messages     []IngestMessage `json:"messages"`
-	SessionEnded bool            `json:"session_ended"`
+	Tool      string `json:"tool"`
+	SessionID string `json:"session_id"`
+	// ParentSessionID links a derived session (e.g. a Claude Code subagent) back
+	// to the session it ran under. Empty for ordinary top-level sessions.
+	ParentSessionID string          `json:"parent_session_id"`
+	Title           string          `json:"title"`
+	Project         string          `json:"project"`
+	Machine         string          `json:"machine"`
+	Username        string          `json:"username"`
+	Messages        []IngestMessage `json:"messages"`
+	SessionEnded    bool            `json:"session_ended"`
 }
 
 // IngestResult summarizes what an ingest produced.
@@ -133,6 +136,9 @@ func buildConversationEntities(batch IngestBatch, seq ...int) json.RawMessage {
 	entities := map[string]any{
 		"tool":       batch.Tool,
 		"session_id": batch.SessionID,
+	}
+	if batch.ParentSessionID != "" {
+		entities["parent_session_id"] = batch.ParentSessionID
 	}
 	if len(seq) > 0 {
 		entities["seq"] = seq[0]
