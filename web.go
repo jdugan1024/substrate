@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -34,6 +35,7 @@ func RegisterWebHandlers(mux *http.ServeMux, a *brain.App, es *service.EntryServ
 	mux.Handle("POST /capture", webAuthMiddleware(sessions, http.HandlerFunc(webCaptureHandler(a, es))))
 	mux.HandleFunc("GET /browse", serveBrowseUI())
 	mux.Handle("GET /entries", webAuthMiddleware(sessions, http.HandlerFunc(listEntriesHandler(a))))
+	mux.Handle("GET /entries/{id}", webAuthMiddleware(sessions, http.HandlerFunc(getEntryHandler(a))))
 	mux.HandleFunc("GET /tokens.html", serveTokensUI())
 	mux.Handle("POST /tokens", webAuthMiddleware(sessions, http.HandlerFunc(createTokenHandler(a))))
 	mux.Handle("GET /tokens", webAuthMiddleware(sessions, http.HandlerFunc(listTokensHandler(a))))
@@ -84,10 +86,47 @@ type captureResponse struct {
 type entryItem struct {
 	ID             string `json:"id"`
 	RecordType     string `json:"record_type"`
+	Title          string `json:"title"`
 	ContentText    string `json:"content_text"`
 	PayloadSummary string `json:"payload_summary"`
 	URL            string `json:"url,omitempty"`
 	CreatedAt      string `json:"created_at"`
+}
+
+// titleField maps record types whose primary headline lives in a payload field
+// other than "title" (e.g. a contact's name, not their job title).
+var titleField = map[string]string{
+	"crm.contact":      "name",
+	"crm.interaction":  "person_name",
+	"maintenance.task": "name",
+}
+
+// deriveTitle picks a human title for an entry: a type-specific headline field,
+// then an explicit title in entities or payload, otherwise the first non-empty
+// line of content_text.
+func deriveTitle(recordType string, entities, payload json.RawMessage, contentText string) string {
+	if field := titleField[recordType]; field != "" {
+		var m map[string]any
+		if json.Unmarshal(payload, &m) == nil {
+			if v, ok := m[field].(string); ok && v != "" {
+				return v
+			}
+		}
+	}
+	for _, raw := range []json.RawMessage{entities, payload} {
+		var m struct {
+			Title string `json:"title"`
+		}
+		if json.Unmarshal(raw, &m) == nil && m.Title != "" {
+			return m.Title
+		}
+	}
+	for _, line := range strings.Split(contentText, "\n") {
+		if s := strings.TrimSpace(line); s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 type entriesResponse struct {
@@ -112,9 +151,10 @@ func listEntriesHandler(a *brain.App) http.HandlerFunc {
 		var items []entryItem
 
 		err := a.WithUserTx(r.Context(), func(tx pgx.Tx) error {
-			qSQL := `SELECT id::text, record_type, content_text, payload, created_at
+			qSQL := `SELECT id::text, record_type, content_text, payload, entities, created_at
 				FROM entries
-				WHERE deleted_at IS NULL`
+				WHERE deleted_at IS NULL
+				  AND record_type <> 'conversation.chunk'`
 			args := []any{}
 			n := 1
 
@@ -138,12 +178,13 @@ func listEntriesHandler(a *brain.App) http.HandlerFunc {
 			defer rows.Close()
 			for rows.Next() {
 				var item entryItem
-				var payload json.RawMessage
+				var payload, entities json.RawMessage
 				var createdAt time.Time
-				if err := rows.Scan(&item.ID, &item.RecordType, &item.ContentText, &payload, &createdAt); err != nil {
+				if err := rows.Scan(&item.ID, &item.RecordType, &item.ContentText, &payload, &entities, &createdAt); err != nil {
 					return err
 				}
 				item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+				item.Title = deriveTitle(item.RecordType, entities, payload, item.ContentText)
 				item.PayloadSummary = core.FormatPayloadSummary(item.RecordType, payload)
 				if item.RecordType == "note.link" {
 					var p struct {
@@ -173,6 +214,108 @@ func listEntriesHandler(a *brain.App) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(entriesResponse{Entries: items, HasMore: hasMore})
+	}
+}
+
+// transcriptChunk is one ordered slice of a captured conversation, rendered as
+// "role: text" lines by the ingest pipeline.
+type transcriptChunk struct {
+	Seq  int    `json:"seq"`
+	Text string `json:"text"`
+}
+
+// entryDetail is the full entry returned by GET /entries/{id}, including raw
+// payload/entities and, for conversation summaries, the reconstructed transcript.
+type entryDetail struct {
+	ID          string            `json:"id"`
+	RecordType  string            `json:"record_type"`
+	Title       string            `json:"title"`
+	ContentText string            `json:"content_text"`
+	Payload     json.RawMessage   `json:"payload"`
+	Entities    json.RawMessage   `json:"entities"`
+	Tags        []string          `json:"tags"`
+	CreatedAt   string            `json:"created_at"`
+	Transcript  []transcriptChunk `json:"transcript,omitempty"`
+}
+
+func getEntryHandler(a *brain.App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			http.Error(w, `{"error":"id is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		var detail entryDetail
+		var source string
+		found := false
+		err := a.WithUserTx(r.Context(), func(tx pgx.Tx) error {
+			var createdAt time.Time
+			var tags []string
+			err := tx.QueryRow(r.Context(), `
+				SELECT id::text, record_type, source, content_text, payload, entities, tags, created_at
+				FROM entries
+				WHERE id = $1::uuid AND deleted_at IS NULL`, id).Scan(
+				&detail.ID, &detail.RecordType, &source, &detail.ContentText,
+				&detail.Payload, &detail.Entities, &tags, &createdAt)
+			if err == pgx.ErrNoRows {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			found = true
+			detail.Tags = tags
+			detail.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+			detail.Title = deriveTitle(detail.RecordType, detail.Entities, detail.Payload, detail.ContentText)
+
+			// For a conversation summary, attach the session's transcript chunks
+			// (excluded from the feed) so the detail view can show the full chat.
+			if detail.RecordType == "conversation.summary" {
+				var sessionID string
+				var ent struct {
+					SessionID string `json:"session_id"`
+				}
+				if json.Unmarshal(detail.Entities, &ent) == nil {
+					sessionID = ent.SessionID
+				}
+				if sessionID != "" {
+					rows, err := tx.Query(r.Context(), `
+						SELECT content_text, COALESCE((entities->>'seq')::int, 0) AS seq
+						FROM entries
+						WHERE deleted_at IS NULL
+						  AND record_type = 'conversation.chunk'
+						  AND source = $1
+						  AND entities->>'session_id' = $2
+						ORDER BY seq`, source, sessionID)
+					if err != nil {
+						return err
+					}
+					defer rows.Close()
+					for rows.Next() {
+						var c transcriptChunk
+						if err := rows.Scan(&c.Text, &c.Seq); err != nil {
+							return err
+						}
+						detail.Transcript = append(detail.Transcript, c)
+					}
+					return rows.Err()
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			log.Printf("get entry error: %v", err)
+			http.Error(w, `{"error":"failed to fetch entry"}`, http.StatusInternalServerError)
+			return
+		}
+		if !found {
+			http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(detail)
 	}
 }
 

@@ -145,6 +145,22 @@
     border-radius: 12px;
     padding: 1rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    cursor: pointer;
+    transition: border-color 0.1s, box-shadow 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .entry-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .entry-title {
+    font-size: 1rem;
+    font-weight: 650;
+    line-height: 1.35;
+    color: var(--text);
+    word-break: break-word;
   }
 
   .entry-meta {
@@ -245,17 +261,182 @@
   }
 
   #sentinel { height: 1px; }
+
+  /* ── Detail view ── */
+  .detail {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  .detail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0.25rem 0;
+    margin-bottom: 0.75rem;
+  }
+
+  .detail-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+    word-break: break-word;
+  }
+
+  .detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+  }
+
+  .detail-section { margin-bottom: 1.5rem; }
+
+  .detail-section h3 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .detail-prose {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text);
+    word-break: break-word;
+  }
+
+  .detail-fields {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.375rem 1rem;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+
+  .detail-fields dt { color: var(--muted); white-space: nowrap; }
+  .detail-fields dd { word-break: break-word; }
+  .detail-fields dd a { color: var(--accent); text-decoration: none; }
+  .detail-fields dd a:hover { text-decoration: underline; }
+
+  .detail-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .detail-list li {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    padding-left: 1.125rem;
+    position: relative;
+    word-break: break-word;
+  }
+
+  .detail-list li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .tag {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    background: var(--chip-active-bg);
+    color: var(--chip-active-text);
+  }
+
+  .detail-json {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* ── Transcript ── */
+  .transcript-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.5rem 0.875rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+  }
+
+  .transcript-toggle:hover { border-color: var(--accent); }
+
+  .transcript { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem; }
+
+  .msg {
+    border-radius: 10px;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .msg-role {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+
+  .msg.human { background: var(--chip-active-bg); }
+  .msg.assistant { background: var(--card); border: 1px solid var(--border); }
+  .hidden { display: none; }
 </style>
 </head>
 <body>
 
-<div class="topbar">
+<div class="topbar" id="topbar">
   <div class="topbar-row1">
     <span class="topbar-title">Engram &nbsp;<a href="/">← Capture</a></span>
     <input class="search-input" id="search" type="search" placeholder="Search memories…" autocomplete="off">
   </div>
   <div class="chips" id="chips">
     <button class="chip active" data-type="">All</button>
+    <button class="chip" data-type="conversation.summary">Chats</button>
     <button class="chip" data-type="note.thought">Thoughts</button>
     <button class="chip" data-type="note.link">Links</button>
     <button class="chip" data-type="crm.contact">Contacts</button>
@@ -265,8 +446,11 @@
   </div>
 </div>
 
-<div class="feed" id="feed"></div>
-<div id="sentinel"></div>
+<div id="feed-view">
+  <div class="feed" id="feed"></div>
+  <div id="sentinel"></div>
+</div>
+<div class="detail hidden" id="detail"></div>
 
 <script>
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -303,6 +487,14 @@ function formatType(t) {
 function renderCard(entry) {
   const card = document.createElement('div');
   card.className = 'entry-card';
+  card.setAttribute('role', 'button');
+  card.tabIndex = 0;
+
+  const title = entry.title || entry.content_text || '(untitled)';
+  // Show a body preview only when it adds something beyond the title.
+  const bodyPreview = entry.content_text && entry.content_text.trim() !== title.trim()
+    ? `<div class="entry-text">${escapeHTML(entry.content_text)}</div>`
+    : '';
   const summary = entry.payload_summary
     ? `<div class="entry-summary">${escapeHTML(entry.payload_summary)}</div>`
     : '';
@@ -314,11 +506,298 @@ function renderCard(entry) {
       <span class="entry-type">${escapeHTML(formatType(entry.record_type))}</span>
       <span class="entry-date">${escapeHTML(formatDate(entry.created_at))}</span>
     </div>
-    <div class="entry-text">${escapeHTML(entry.content_text)}</div>
+    <div class="entry-title">${escapeHTML(title)}</div>
+    ${bodyPreview}
     ${summary}
     ${link}
   `;
+  const open = (e) => {
+    // Let real links inside the card behave normally.
+    if (e.target.closest('a')) return;
+    navigateToDetail(entry.id);
+  };
+  card.addEventListener('click', open);
+  card.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); }
+  });
   return card;
+}
+
+// ── Detail view ───────────────────────────────────────────────────────────────
+
+function showFeed() {
+  document.getElementById('topbar').classList.remove('hidden');
+  document.getElementById('feed-view').classList.remove('hidden');
+  document.getElementById('detail').classList.add('hidden');
+  document.getElementById('detail').innerHTML = '';
+}
+
+function showDetail() {
+  document.getElementById('topbar').classList.add('hidden');
+  document.getElementById('feed-view').classList.add('hidden');
+  document.getElementById('detail').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+function navigateToDetail(id) {
+  history.pushState({ entry: id }, '', '?entry=' + encodeURIComponent(id));
+  loadDetail(id);
+}
+
+async function loadDetail(id) {
+  showDetail();
+  const el = document.getElementById('detail');
+  el.innerHTML = `<button class="detail-back">← Back</button><div class="state-msg">Loading…</div>`;
+  el.querySelector('.detail-back').onclick = () => history.back();
+
+  let resp;
+  try {
+    resp = await fetch('/entries/' + encodeURIComponent(id));
+  } catch {
+    el.innerHTML = `<button class="detail-back">← Back</button><div class="state-msg">Failed to load.</div>`;
+    el.querySelector('.detail-back').onclick = () => history.back();
+    return;
+  }
+  if (resp.status === 401) { window.location.href = '/web/login'; return; }
+  if (!resp.ok) {
+    el.innerHTML = `<button class="detail-back">← Back</button><div class="state-msg">${resp.status === 404 ? 'Entry not found.' : 'Failed to load.'}</div>`;
+    el.querySelector('.detail-back').onclick = () => history.back();
+    return;
+  }
+  const detail = await resp.json();
+  renderDetail(detail);
+}
+
+function metaItem(label, value) {
+  return value ? `<span>${escapeHTML(label)}: ${escapeHTML(String(value))}</span>` : '';
+}
+
+// detailShell wraps a rendered detail in the common back-button + title frame.
+function detailShell(title, metaHtml, bodyHtml) {
+  return `
+    <button class="detail-back">← Back</button>
+    <h1 class="detail-title">${escapeHTML(title || '(untitled)')}</h1>
+    <div class="detail-meta">${metaHtml || ''}</div>
+    ${bodyHtml}
+  `;
+}
+
+function proseSection(title, text) {
+  if (!text) return '';
+  return `<div class="detail-section"><h3>${escapeHTML(title)}</h3><div class="detail-prose">${escapeHTML(String(text))}</div></div>`;
+}
+
+function listSection(title, items) {
+  if (!Array.isArray(items) || items.length === 0) return '';
+  const lis = items.map(i => `<li>${escapeHTML(String(i))}</li>`).join('');
+  return `<div class="detail-section"><h3>${escapeHTML(title)}</h3><ul class="detail-list">${lis}</ul></div>`;
+}
+
+function tagsSection(title, items) {
+  if (!Array.isArray(items) || items.length === 0) return '';
+  const tags = items.map(t => `<span class="tag">${escapeHTML(String(t))}</span>`).join('');
+  return `<div class="detail-section"><h3>${escapeHTML(title)}</h3><div class="tag-row">${tags}</div></div>`;
+}
+
+// fieldsSection renders a label/value grid. Each field is {label, value} and,
+// optionally, {href} to render the value as a link. Empty values are skipped.
+function fieldsSection(title, fields) {
+  const rows = fields.filter(f => f && f.value).map(f => {
+    const v = f.href
+      ? `<a href="${escapeHTML(f.href)}"${/^https?:/.test(f.href) ? ' target="_blank" rel="noopener noreferrer"' : ''}>${escapeHTML(String(f.value))}</a>`
+      : escapeHTML(String(f.value));
+    return `<dt>${escapeHTML(f.label)}</dt><dd>${v}</dd>`;
+  }).join('');
+  if (!rows) return '';
+  const heading = title ? `<h3>${escapeHTML(title)}</h3>` : '';
+  return `<div class="detail-section">${heading}<dl class="detail-fields">${rows}</dl></div>`;
+}
+
+// parseTranscript turns rendered "role: text" chunk strings into message objects.
+function parseTranscript(chunks) {
+  const text = chunks.map(c => c.text).join('\n');
+  const msgs = [];
+  let cur = null;
+  for (const line of text.split('\n')) {
+    const m = line.match(/^(human|assistant|user|system|tool):\s?(.*)$/);
+    if (m) {
+      if (cur) msgs.push(cur);
+      const role = m[1] === 'user' ? 'human' : m[1];
+      cur = { role, text: m[2] };
+    } else if (cur) {
+      cur.text += '\n' + line;
+    }
+  }
+  if (cur) msgs.push(cur);
+  return msgs;
+}
+
+// asObject coerces a JSON field to a plain object. The API sends payload and
+// entities as embedded JSON objects (json.RawMessage), but tolerate a string
+// too. Returns {} for null/invalid.
+function asObject(v) {
+  if (v && typeof v === 'object') return v;
+  if (typeof v === 'string') { try { return JSON.parse(v); } catch { return {}; } }
+  return {};
+}
+
+function payloadOf(detail) {
+  return asObject(detail.payload);
+}
+
+function dateMeta(detail) {
+  return `<span>${escapeHTML(formatType(detail.record_type))}</span><span>${escapeHTML(formatDate(detail.created_at))}</span>`;
+}
+
+function renderConversationDetail(detail) {
+  const p = payloadOf(detail);
+  const ent = asObject(detail.entities);
+
+  const meta = [
+    metaItem('Tool', ent.tool),
+    metaItem('Project', ent.project),
+    metaItem('Machine', ent.machine),
+    metaItem('User', ent.username),
+    `<span>${escapeHTML(formatDate(detail.created_at))}</span>`,
+  ].join('');
+
+  let transcript = '';
+  if (Array.isArray(detail.transcript) && detail.transcript.length) {
+    const msgs = parseTranscript(detail.transcript);
+    const bubbles = msgs.map(m =>
+      `<div class="msg ${m.role === 'human' ? 'human' : 'assistant'}"><span class="msg-role">${escapeHTML(m.role)}</span>${escapeHTML(m.text)}</div>`
+    ).join('');
+    transcript = `
+      <div class="detail-section">
+        <button class="transcript-toggle" id="tr-toggle" data-count="${msgs.length}">▸ Show transcript (${msgs.length} messages)</button>
+        <div class="transcript hidden" id="tr-body">${bubbles}</div>
+      </div>`;
+  }
+
+  return detailShell(detail.title, meta,
+    proseSection('Summary', p.summary || detail.content_text) +
+    tagsSection('Topics', p.topics) +
+    listSection('Decisions', p.decisions) +
+    listSection('Preferences', p.preferences) +
+    listSection('Open threads', p.open_threads) +
+    transcript);
+}
+
+function renderLinkDetail(detail) {
+  const p = payloadOf(detail);
+  return detailShell(p.title || detail.title, dateMeta(detail),
+    fieldsSection('', [
+      { label: 'URL', value: p.url, href: p.url },
+    ]) +
+    proseSection('Description', p.description) +
+    proseSection('Notes', p.notes));
+}
+
+function renderThoughtDetail(detail) {
+  const p = payloadOf(detail);
+  return detailShell(detail.title, dateMeta(detail),
+    proseSection('Thought', p.content || detail.content_text) +
+    tagsSection('Topics', p.topics) +
+    tagsSection('People', p.people) +
+    listSection('Action items', p.action_items) +
+    listSection('Dates mentioned', p.dates_mentioned));
+}
+
+function renderContactDetail(detail) {
+  const p = payloadOf(detail);
+  return detailShell(p.name || detail.title, dateMeta(detail),
+    fieldsSection('', [
+      { label: 'Company', value: p.company },
+      { label: 'Title', value: p.title },
+      { label: 'Email', value: p.email, href: p.email ? 'mailto:' + p.email : '' },
+      { label: 'Phone', value: p.phone, href: p.phone ? 'tel:' + p.phone : '' },
+      { label: 'LinkedIn', value: p.linkedin_url, href: p.linkedin_url },
+    ]) +
+    proseSection('How we met', p.how_we_met) +
+    proseSection('Notes', p.notes) +
+    tagsSection('Tags', p.tags));
+}
+
+function renderInteractionDetail(detail) {
+  const p = payloadOf(detail);
+  return detailShell(p.person_name || detail.title, dateMeta(detail),
+    fieldsSection('', [
+      { label: 'Type', value: p.interaction_type },
+      { label: 'Date', value: p.interaction_date },
+      { label: 'Follow-up', value: p.follow_up_needed ? 'Needed' : '' },
+    ]) +
+    proseSection('Summary', p.summary || detail.content_text) +
+    proseSection('Follow-up notes', p.follow_up_notes));
+}
+
+function renderTaskDetail(detail) {
+  const p = payloadOf(detail);
+  return detailShell(p.name || detail.title, dateMeta(detail),
+    fieldsSection('', [
+      { label: 'Category', value: p.category },
+      { label: 'Location', value: p.location },
+      { label: 'Frequency', value: p.frequency_days ? `Every ${p.frequency_days} days` : '' },
+      { label: 'Next due', value: p.next_due },
+      { label: 'Last done', value: p.last_completed },
+    ]) +
+    proseSection('Notes', p.notes));
+}
+
+function renderJobDetail(detail) {
+  const p = payloadOf(detail);
+  const salary = p.salary_min || p.salary_max
+    ? [p.salary_min, p.salary_max].filter(Boolean).join(' – ')
+    : '';
+  return detailShell(
+    [p.title, p.company_name].filter(Boolean).join(' @ ') || detail.title,
+    dateMeta(detail),
+    fieldsSection('', [
+      { label: 'Company', value: p.company_name },
+      { label: 'Status', value: p.status },
+      { label: 'Applied', value: p.applied_date },
+      { label: 'Posting', value: p.posting_url, href: p.posting_url },
+      { label: 'Salary', value: salary },
+      { label: 'Resume', value: p.resume_version },
+      { label: 'Referral', value: p.referral_contact },
+    ]) +
+    proseSection('Notes', p.notes));
+}
+
+function renderGenericDetail(detail) {
+  const pretty = JSON.stringify(asObject(detail.payload), null, 2);
+  const payload = pretty && pretty !== '{}'
+    ? `<div class="detail-section"><h3>Details</h3><pre class="detail-json">${escapeHTML(pretty)}</pre></div>`
+    : '';
+  return detailShell(detail.title, dateMeta(detail),
+    proseSection('Content', detail.content_text) +
+    tagsSection('Tags', detail.tags) +
+    payload);
+}
+
+const detailRenderers = {
+  'conversation.summary': renderConversationDetail,
+  'note.link': renderLinkDetail,
+  'note.thought': renderThoughtDetail,
+  'crm.contact': renderContactDetail,
+  'crm.interaction': renderInteractionDetail,
+  'maintenance.task': renderTaskDetail,
+  'jobhunt.application': renderJobDetail,
+};
+
+function renderDetail(detail) {
+  const el = document.getElementById('detail');
+  const renderer = detailRenderers[detail.record_type] || renderGenericDetail;
+  el.innerHTML = renderer(detail);
+  el.querySelector('.detail-back').onclick = () => history.back();
+  const toggle = document.getElementById('tr-toggle');
+  if (toggle) {
+    toggle.onclick = () => {
+      const body = document.getElementById('tr-body');
+      const shown = !body.classList.toggle('hidden');
+      const n = toggle.dataset.count;
+      toggle.textContent = shown ? `▾ Hide transcript (${n} messages)` : `▸ Show transcript (${n} messages)`;
+    };
+  }
 }
 
 // ── Feed management ───────────────────────────────────────────────────────────
@@ -473,7 +952,18 @@ async function init() {
   }
   setupObserver();
   fetchEntries(true);
+
+  // Deep link: open detail directly if ?entry=<id> is present.
+  const entryId = new URLSearchParams(window.location.search).get('entry');
+  if (entryId) loadDetail(entryId);
 }
+
+// Browser back/forward toggles between feed and detail.
+window.addEventListener('popstate', (e) => {
+  const id = e.state && e.state.entry;
+  if (id) loadDetail(id);
+  else showFeed();
+});
 
 document.addEventListener('DOMContentLoaded', init);
 </script>

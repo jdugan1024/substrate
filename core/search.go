@@ -200,6 +200,18 @@ func FormatPayloadSummary(recordType string, raw json.RawMessage) string {
 		if v, _ := m["failure_mode"].(string); v != "" {
 			parts = append(parts, "[unstructured: "+v+"]")
 		}
+	case "conversation.summary":
+		if topics, _ := m["topics"].([]any); len(topics) > 0 {
+			ts := make([]string, 0, len(topics))
+			for _, t := range topics {
+				if s, ok := t.(string); ok {
+					ts = append(ts, s)
+				}
+			}
+			if len(ts) > 0 {
+				parts = append(parts, "Topics: "+strings.Join(ts, ", "))
+			}
+		}
 	}
 
 	return strings.Join(parts, " | ")
