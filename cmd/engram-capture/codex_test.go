@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -44,6 +45,45 @@ func TestCodexParser_ParseFixture(t *testing.T) {
 	for i := range want {
 		if tr.Messages[i].Role != want[i].Role || tr.Messages[i].Text != want[i].Text || tr.Messages[i].MsgID != want[i].MsgID {
 			t.Fatalf("message %d = %#v, want %#v", i, tr.Messages[i], want[i])
+		}
+	}
+}
+
+func TestCodexParser_TitleSkipsInjectedPreamble(t *testing.T) {
+	parser := CodexParser{}
+	path := filepath.Join("testdata", "codex-preamble", "rollout-2026-06-18T11-00-00-sess-pre-1.jsonl")
+
+	tr, err := parser.ParseFile(context.Background(), path)
+	if err != nil {
+		t.Fatalf("ParseFile: %v", err)
+	}
+
+	// Codex injects an AGENTS.md / <environment_context> block as the first user
+	// turn; the title must come from the first real user prompt instead.
+	if tr.Title != "Fix the title bug." {
+		t.Fatalf("title = %q, want the first real user prompt", tr.Title)
+	}
+	// The preamble message is still captured (append-only contract); only the
+	// title selection skips it.
+	if len(tr.Messages) != 3 {
+		t.Fatalf("message count = %d, want 3 (preamble retained): %#v", len(tr.Messages), tr.Messages)
+	}
+	if tr.Messages[0].Role != "human" || !strings.HasPrefix(tr.Messages[0].Text, "# AGENTS.md") {
+		t.Fatalf("first message should be the retained preamble, got %#v", tr.Messages[0])
+	}
+}
+
+func TestIsInjectedContext(t *testing.T) {
+	cases := map[string]bool{
+		"# AGENTS.md instructions for /home/jdugan/proj": true,
+		"<environment_context>\nfoo":                     true,
+		"  # AGENTS.md instructions":                     true,
+		"Fix the title bug.":                             false,
+		"Please look at AGENTS.md":                       false,
+	}
+	for text, want := range cases {
+		if got := isInjectedContext(text); got != want {
+			t.Fatalf("isInjectedContext(%q) = %v, want %v", text, got, want)
 		}
 	}
 }
