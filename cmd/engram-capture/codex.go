@@ -99,7 +99,7 @@ func (p CodexParser) ParseFile(ctx context.Context, path string) (Transcript, er
 			if role == "" || strings.TrimSpace(text) == "" {
 				continue
 			}
-			if tr.Title == "" && role == "human" {
+			if tr.Title == "" && role == "human" && !isInjectedContext(text) {
 				tr.Title = firstLine(text)
 			}
 			// Codex records carry no per-message id, so MsgID is a running index
@@ -188,6 +188,16 @@ func renderCodexPayload(raw json.RawMessage) (string, string) {
 	default:
 		return "", ""
 	}
+}
+
+// isInjectedContext reports whether a user-role message is machine-injected
+// environment/instruction context (Codex prepends an AGENTS.md block or an
+// <environment_context> block as the first user turn) rather than a real prompt.
+// Such messages are still captured but skipped when choosing the session title.
+func isInjectedContext(text string) bool {
+	t := strings.TrimSpace(text)
+	return strings.HasPrefix(t, "# AGENTS.md instructions") ||
+		strings.HasPrefix(t, "<environment_context>")
 }
 
 func hasSubagentSource(raw json.RawMessage) bool {
