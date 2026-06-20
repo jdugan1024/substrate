@@ -114,6 +114,28 @@ func UpdateEntryContent(ctx context.Context, tx pgx.Tx, p UpdateEntryContentPara
 	return nil
 }
 
+// UpdateSessionChunkTitles backfills the title onto all conversation.chunk
+// entries for one captured session. Chunks are written with a cheap
+// first-prompt title at capture time; once the summary produces a better
+// title we propagate it so every entry for the session stays consistent.
+// For chunks, payload mirrors entities, so both are updated. RLS scopes the
+// rows to the current user. Returns the number of chunks updated.
+func UpdateSessionChunkTitles(ctx context.Context, tx pgx.Tx, source, sessionID, title string) (int64, error) {
+	tag, err := tx.Exec(ctx, `
+		UPDATE entries
+		SET entities = jsonb_set(entities, '{title}', to_jsonb($3::text)),
+		    payload  = jsonb_set(payload,  '{title}', to_jsonb($3::text))
+		WHERE record_type = 'conversation.chunk'
+		  AND source = $1
+		  AND entities->>'session_id' = $2
+		  AND entities->>'title' IS DISTINCT FROM $3
+	`, source, sessionID, title)
+	if err != nil {
+		return 0, fmt.Errorf("update session chunk titles: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
 // SearchEntriesParams holds filters for cross-domain semantic search.
 type SearchEntriesParams struct {
 	Embedding   pgvector.Vector

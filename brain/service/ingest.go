@@ -161,6 +161,7 @@ func buildConversationEntities(batch IngestBatch, seq ...int) json.RawMessage {
 
 // ConversationSummary is the structured distillation of a session.
 type ConversationSummary struct {
+	Title       string   `json:"title"`
 	Summary     string   `json:"summary"`
 	Topics      []string `json:"topics"`
 	Decisions   []string `json:"decisions"`
@@ -181,8 +182,9 @@ func generateConversationSummary(ctx context.Context, client *http.Client, baseU
 			{
 				"role": "system",
 				"content": `Summarize this LLM coding/chat session. Return JSON with:
+- "title": a concise 3-8 word title naming the session's main task or topic (no trailing punctuation)
 - "summary": 2-4 sentence prose summary of what happened
-- "topics": array of 1-5 short topic tags
+- "topics": array of 3-8 short topic/keyword tags
 - "decisions": array of decisions or conclusions reached (empty if none)
 - "preferences": array of preferences the user expressed (empty if none)
 - "open_threads": array of unresolved questions or TODOs (empty if none)`,
@@ -304,6 +306,7 @@ func (s *IngestService) Ingest(ctx context.Context, batch IngestBatch) (IngestRe
 	now := time.Now()
 	doSummary := shouldSummarize(len(newMsgs), lastSummarizedAt, now, batch.SessionEnded, summaryMinNewMsgs, summaryMaxAge)
 	var summaryText string
+	var summaryTitle string
 	var summaryPayload, summaryEntities json.RawMessage
 	var summaryTags []string
 	var summaryEmbed pgvectorVector
@@ -325,7 +328,15 @@ func (s *IngestService) Ingest(ctx context.Context, batch IngestBatch) (IngestRe
 				doSummary = false
 			} else {
 				summaryPayload, _ = json.Marshal(cs)
-				summaryEntities = buildConversationEntities(batch)
+				// Prefer the LLM-generated title (it sees the whole transcript)
+				// over the capture daemon's first-prompt heuristic; fall back to
+				// the heuristic when the model omits one.
+				summaryBatch := batch
+				if cs.Title != "" {
+					summaryBatch.Title = cs.Title
+				}
+				summaryTitle = summaryBatch.Title
+				summaryEntities = buildConversationEntities(summaryBatch)
 				summaryTags = cs.Topics
 			}
 		}
@@ -378,6 +389,15 @@ func (s *IngestService) Ingest(ctx context.Context, batch IngestBatch) (IngestRe
 					return err
 				}
 				newSummaryID = &id
+			}
+
+			// Propagate the resolved title onto the session's chunk entries so
+			// every entry for the session carries the better title, not just the
+			// summary. No-op when the title is unchanged.
+			if summaryTitle != "" {
+				if _, err := repository.UpdateSessionChunkTitles(ctx, tx, batch.Tool, batch.SessionID, summaryTitle); err != nil {
+					return err
+				}
 			}
 		}
 

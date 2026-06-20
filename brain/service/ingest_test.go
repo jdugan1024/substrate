@@ -161,7 +161,7 @@ func TestGenerateConversationSummary(t *testing.T) {
 		json.NewEncoder(w).Encode(map[string]any{
 			"choices": []map[string]any{
 				{"message": map[string]string{
-					"content": `{"summary":"Discussed Go testing.","topics":["go","testing"],"decisions":["use TDD"],"preferences":[],"open_threads":["add CI"]}`,
+					"content": `{"title":"Go testing approach","summary":"Discussed Go testing.","topics":["go","testing"],"decisions":["use TDD"],"preferences":[],"open_threads":["add CI"]}`,
 				}},
 			},
 		})
@@ -171,6 +171,9 @@ func TestGenerateConversationSummary(t *testing.T) {
 	cs, err := generateConversationSummary(context.Background(), http.DefaultClient, srv.URL, "k", "human: how do I test?\nassistant: use TDD")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+	if cs.Title != "Go testing approach" {
+		t.Errorf("title: got %q", cs.Title)
 	}
 	if cs.Summary != "Discussed Go testing." {
 		t.Errorf("summary: got %q", cs.Summary)
