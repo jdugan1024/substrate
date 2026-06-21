@@ -179,6 +179,34 @@
     margin-top: 0.375rem;
   }
 
+  /* Why a card matched the active search */
+  .entry-match {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .entry-match strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  mark {
+    background: var(--chip-active-bg);
+    color: var(--chip-active-text);
+    border-radius: 3px;
+    padding: 0 1px;
+  }
+
+  /* Count suffix on filter chips */
+  .chip-count {
+    opacity: 0.6;
+    margin-left: 0.25rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chip.empty { opacity: 0.45; }
+
   .entry-link {
     margin-top: 0.5rem;
     font-size: 0.8125rem;
@@ -432,7 +460,7 @@
 <div id="feed-view">
   <div class="result-header" id="result-header">
     <span class="result-context" id="result-context">All memories</span>
-    <span class="result-sort">Sorted by recent</span>
+    <span class="result-sort" id="result-sort">Sorted by recent</span>
   </div>
   <div class="feed" id="feed"></div>
   <div id="sentinel"></div>
@@ -448,6 +476,8 @@ let hasMore = true;
 let currentQ = '';
 let currentType = '';
 let observer = null;
+let counts = {};       // record_type -> count for the active query
+let baseChipLabels = {}; // data-type -> original chip label (without count)
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
 
@@ -471,6 +501,22 @@ function formatType(t) {
   return t.replace(/\./g, ' · ');
 }
 
+// Friendly labels for the match-reason hint shown on cards.
+const MATCH_LABELS = { title: 'Title', summary: 'Summary', topics: 'Topic', body: 'Text' };
+
+// highlightHTML escapes text, then wraps occurrences of the active search terms
+// in <mark>. Terms come from currentQ; matching is case-insensitive.
+function highlightHTML(text) {
+  const escaped = escapeHTML(text);
+  const terms = currentQ.split(/\s+/).filter(t => t.length >= 2);
+  if (!terms.length) return escaped;
+  const pattern = terms
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .sort((a, b) => b.length - a.length)
+    .join('|');
+  return escaped.replace(new RegExp('(' + pattern + ')', 'gi'), '<mark>$1</mark>');
+}
+
 function renderCard(entry) {
   const card = document.createElement('div');
   card.className = 'entry-card';
@@ -480,22 +526,26 @@ function renderCard(entry) {
   const title = entry.title || entry.content_text || '(untitled)';
   // Show a body preview only when it adds something beyond the title.
   const bodyPreview = entry.content_text && entry.content_text.trim() !== title.trim()
-    ? `<div class="entry-text">${escapeHTML(entry.content_text)}</div>`
+    ? `<div class="entry-text">${highlightHTML(entry.content_text)}</div>`
     : '';
   const summary = entry.payload_summary
-    ? `<div class="entry-summary">${escapeHTML(entry.payload_summary)}</div>`
+    ? `<div class="entry-summary">${highlightHTML(entry.payload_summary)}</div>`
     : '';
   const link = entry.url
     ? `<div class="entry-link"><a href="${escapeHTML(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(entry.url)}</a></div>`
+    : '';
+  const match = Array.isArray(entry.match_fields) && entry.match_fields.length
+    ? `<div class="entry-match">Matched <strong>${entry.match_fields.map(f => escapeHTML(MATCH_LABELS[f] || f)).join('</strong> · <strong>')}</strong></div>`
     : '';
   card.innerHTML = `
     <div class="entry-meta">
       <span class="entry-type">${escapeHTML(formatType(entry.record_type))}</span>
       <span class="entry-date">${escapeHTML(formatDate(entry.created_at))}</span>
     </div>
-    <div class="entry-title">${escapeHTML(title)}</div>
+    <div class="entry-title">${highlightHTML(title)}</div>
     ${bodyPreview}
     ${summary}
+    ${match}
     ${link}
   `;
   const open = (e) => {
@@ -857,6 +907,13 @@ async function fetchEntries(isInitial) {
   loading = false;
   hasMore = data.has_more;
 
+  // Counts arrive only on the first page; refresh chips + header when present.
+  if (data.counts) {
+    counts = data.counts;
+    updateChips();
+    updateResultContext();
+  }
+
   const feed = document.getElementById('feed');
 
   if (isInitial && data.entries.length === 0) {
@@ -899,17 +956,37 @@ function setupObserver() {
   observer.observe(document.getElementById('sentinel'));
 }
 
-// updateResultContext reflects the active query/filter in the result header.
+function totalCount() {
+  return Object.values(counts).reduce((a, b) => a + b, 0);
+}
+
+// updateResultContext reflects the active query/filter (with a count) and the
+// current sort mode in the result header.
 function updateResultContext() {
+  const sort = document.getElementById('result-sort');
+  if (sort) sort.textContent = currentQ ? 'Sorted by relevance' : 'Sorted by recent';
+
   const ctx = document.getElementById('result-context');
   if (!ctx) return;
+  const n = currentType ? (counts[currentType] || 0) : totalCount();
   if (currentQ) {
-    ctx.textContent = 'Results for "' + currentQ + '"';
-    return;
+    ctx.textContent = n + (n === 1 ? ' result for "' : ' results for "') + currentQ + '"';
+  } else if (currentType) {
+    ctx.textContent = n + ' ' + (baseChipLabels[currentType] || 'memories');
+  } else {
+    ctx.textContent = n + (n === 1 ? ' memory' : ' memories');
   }
-  const active = document.querySelector('.chip.active');
-  const label = active ? active.textContent.trim() : 'All';
-  ctx.textContent = label === 'All' ? 'All memories' : label;
+}
+
+// updateChips appends per-type counts to each filter chip and dims empty ones.
+function updateChips() {
+  document.querySelectorAll('.chip').forEach(chip => {
+    const type = chip.dataset.type;
+    const base = baseChipLabels[type] != null ? baseChipLabels[type] : chip.textContent.trim();
+    const n = type === '' ? totalCount() : (counts[type] || 0);
+    chip.innerHTML = escapeHTML(base) + (n ? ' <span class="chip-count">' + n + '</span>' : '');
+    chip.classList.toggle('empty', type !== '' && n === 0);
+  });
 }
 
 // ── Search (debounced 300ms) ──────────────────────────────────────────────────
@@ -919,7 +996,6 @@ document.getElementById('search').addEventListener('input', (e) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     currentQ = e.target.value.trim();
-    updateResultContext();
     reset();
     fetchEntries(true);
   }, 300);
@@ -941,6 +1017,8 @@ document.getElementById('chips').addEventListener('click', (e) => {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 async function init() {
+  // Capture original chip labels before counts are appended.
+  document.querySelectorAll('.chip').forEach(c => { baseChipLabels[c.dataset.type] = c.textContent.trim(); });
   try {
     const resp = await fetch('/web/check');
     if (resp.status === 401) { window.location.href = '/web/login'; return; }

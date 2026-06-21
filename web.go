@@ -135,6 +135,9 @@ type entryItem struct {
 	PayloadSummary string `json:"payload_summary"`
 	URL            string `json:"url,omitempty"`
 	CreatedAt      string `json:"created_at"`
+	// MatchFields lists which fields matched the search query (title, summary,
+	// topics, body), in display order. Omitted when there is no active query.
+	MatchFields []string `json:"match_fields,omitempty"`
 }
 
 // titleField maps record types whose primary headline lives in a payload field
@@ -176,11 +179,45 @@ func deriveTitle(recordType string, entities, payload json.RawMessage, contentTe
 type entriesResponse struct {
 	Entries []entryItem `json:"entries"`
 	HasMore bool        `json:"has_more"`
+	// Counts is per-record_type result counts for the active query, ignoring the
+	// selected type filter (so every filter chip can show a count). Only sent on
+	// the first page (offset 0); nil on subsequent pages.
+	Counts map[string]int `json:"counts,omitempty"`
 }
+
+// SQL expressions that approximate the displayed title/summary/topics for an
+// entry, sourced directly from columns. These drive full-text ranking and
+// per-field match attribution only — the strings shown to the user still come
+// from deriveTitle / FormatPayloadSummary. jsonb array access is type-guarded
+// so non-array payload fields don't error.
+const (
+	ftsTitleExpr = `coalesce(payload->>'title','')||' '||coalesce(payload->>'name','')||' '||` +
+		`coalesce(payload->>'person_name','')||' '||coalesce(payload->>'company_name','')||' '||` +
+		`split_part(content_text, E'\n', 1)`
+	ftsSummaryExpr = `coalesce(payload->>'summary','')||' '||coalesce(payload->>'description','')||' '||` +
+		`coalesce(payload->>'notes','')`
+	ftsTopicsExpr = `coalesce((SELECT string_agg(t,' ') FROM jsonb_array_elements_text(` +
+		`CASE WHEN jsonb_typeof(payload->'topics')='array' THEN payload->'topics' ELSE '[]'::jsonb END) t),'')||' '||` +
+		`coalesce((SELECT string_agg(t,' ') FROM jsonb_array_elements_text(` +
+		`CASE WHEN jsonb_typeof(tags)='array' THEN tags ELSE '[]'::jsonb END) t),'')`
+)
+
+// ftsFieldsCTE is the shared "m" CTE that computes the four per-field tsvectors
+// for every visible entry. $1 must bind the websearch_to_tsquery text.
+const ftsFieldsCTE = `WITH tsq AS (SELECT websearch_to_tsquery('english', $1) AS q),
+m AS (
+  SELECT id, record_type, content_text, payload, entities, created_at,
+    to_tsvector('english', ` + ftsTitleExpr + `) AS tv_title,
+    to_tsvector('english', ` + ftsSummaryExpr + `) AS tv_summary,
+    to_tsvector('english', ` + ftsTopicsExpr + `) AS tv_topics,
+    to_tsvector('english', content_text) AS tv_body
+  FROM entries
+  WHERE deleted_at IS NULL AND record_type <> 'conversation.chunk'
+)`
 
 func listEntriesHandler(a *brain.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query().Get("q")
+		q := strings.TrimSpace(r.URL.Query().Get("q"))
 		recordType := r.URL.Query().Get("type")
 		limit := 50
 		offset := 0
@@ -193,29 +230,11 @@ func listEntriesHandler(a *brain.App) http.HandlerFunc {
 
 		fetchLimit := limit + 1
 		var items []entryItem
+		var counts map[string]int
 
 		err := a.WithUserTx(r.Context(), func(tx pgx.Tx) error {
-			qSQL := `SELECT id::text, record_type, content_text, payload, entities, created_at
-				FROM entries
-				WHERE deleted_at IS NULL
-				  AND record_type <> 'conversation.chunk'`
-			args := []any{}
-			n := 1
-
-			if q != "" {
-				qSQL += fmt.Sprintf(" AND content_text ILIKE $%d", n)
-				args = append(args, "%"+q+"%")
-				n++
-			}
-			if recordType != "" {
-				qSQL += fmt.Sprintf(" AND record_type = $%d", n)
-				args = append(args, recordType)
-				n++
-			}
-			qSQL += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", n, n+1)
-			args = append(args, fetchLimit, offset)
-
-			rows, err := tx.Query(r.Context(), qSQL, args...)
+			listSQL, args := buildEntriesQuery(q, recordType, fetchLimit, offset)
+			rows, err := tx.Query(r.Context(), listSQL, args...)
 			if err != nil {
 				return err
 			}
@@ -224,12 +243,15 @@ func listEntriesHandler(a *brain.App) http.HandlerFunc {
 				var item entryItem
 				var payload, entities json.RawMessage
 				var createdAt time.Time
-				if err := rows.Scan(&item.ID, &item.RecordType, &item.ContentText, &payload, &entities, &createdAt); err != nil {
+				var mTitle, mSummary, mTopics, mBody bool
+				if err := rows.Scan(&item.ID, &item.RecordType, &item.ContentText, &payload, &entities, &createdAt,
+					&mTitle, &mSummary, &mTopics, &mBody); err != nil {
 					return err
 				}
 				item.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 				item.Title = deriveTitle(item.RecordType, entities, payload, item.ContentText)
 				item.PayloadSummary = core.FormatPayloadSummary(item.RecordType, payload)
+				item.MatchFields = matchFields(mTitle, mSummary, mTopics, mBody)
 				if item.RecordType == "note.link" {
 					var p struct {
 						URL string `json:"url"`
@@ -240,7 +262,30 @@ func listEntriesHandler(a *brain.App) http.HandlerFunc {
 				}
 				items = append(items, item)
 			}
-			return rows.Err()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+
+			// Counts (per type, across the whole query) only on the first page.
+			if offset == 0 {
+				counts = map[string]int{}
+				countSQL, countArgs := buildCountsQuery(q)
+				crows, err := tx.Query(r.Context(), countSQL, countArgs...)
+				if err != nil {
+					return err
+				}
+				defer crows.Close()
+				for crows.Next() {
+					var rt string
+					var c int
+					if err := crows.Scan(&rt, &c); err != nil {
+						return err
+					}
+					counts[rt] = c
+				}
+				return crows.Err()
+			}
+			return nil
 		})
 		if err != nil {
 			log.Printf("list entries error: %v", err)
@@ -257,8 +302,86 @@ func listEntriesHandler(a *brain.App) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(entriesResponse{Entries: items, HasMore: hasMore})
+		json.NewEncoder(w).Encode(entriesResponse{Entries: items, HasMore: hasMore, Counts: counts})
 	}
+}
+
+// matchFields returns the field keys that matched the query, in display order.
+// Returns nil when nothing matched (e.g. no query), so the JSON field is omitted.
+func matchFields(title, summary, topics, body bool) []string {
+	var f []string
+	if title {
+		f = append(f, "title")
+	}
+	if summary {
+		f = append(f, "summary")
+	}
+	if topics {
+		f = append(f, "topics")
+	}
+	if body {
+		f = append(f, "body")
+	}
+	return f
+}
+
+// buildEntriesQuery returns the list query and its args. With a query it runs
+// full-text search (ranked by weighted relevance, then recency) and reports
+// which fields matched; without one it falls back to recency order.
+func buildEntriesQuery(q, recordType string, fetchLimit, offset int) (string, []any) {
+	if q == "" {
+		sql := `SELECT id::text, record_type, content_text, payload, entities, created_at,
+			false, false, false, false
+			FROM entries
+			WHERE deleted_at IS NULL AND record_type <> 'conversation.chunk'`
+		args := []any{}
+		if recordType != "" {
+			sql += " AND record_type = $1"
+			args = append(args, recordType)
+		}
+		sql += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2)
+		args = append(args, fetchLimit, offset)
+		return sql, args
+	}
+
+	args := []any{q}
+	typeFilter := ""
+	if recordType != "" {
+		args = append(args, recordType)
+		typeFilter = fmt.Sprintf(" AND record_type = $%d", len(args))
+	}
+	limitParam := len(args) + 1
+	offsetParam := len(args) + 2
+	args = append(args, fetchLimit, offset)
+
+	sql := ftsFieldsCTE + `
+		SELECT id::text, record_type, content_text, payload, entities, created_at,
+		  tv_title   @@ (SELECT q FROM tsq),
+		  tv_summary @@ (SELECT q FROM tsq),
+		  tv_topics  @@ (SELECT q FROM tsq),
+		  tv_body    @@ (SELECT q FROM tsq)
+		FROM m
+		WHERE (tv_title || tv_summary || tv_topics || tv_body) @@ (SELECT q FROM tsq)` + typeFilter + `
+		ORDER BY ts_rank(
+		    setweight(tv_title,'A') || setweight(tv_summary,'B') ||
+		    setweight(tv_topics,'C') || setweight(tv_body,'D'),
+		    (SELECT q FROM tsq)) DESC, created_at DESC
+		LIMIT $` + strconv.Itoa(limitParam) + ` OFFSET $` + strconv.Itoa(offsetParam)
+	return sql, args
+}
+
+// buildCountsQuery returns per-record_type counts for the active query, ignoring
+// any selected type filter so every chip can show its count.
+func buildCountsQuery(q string) (string, []any) {
+	if q == "" {
+		return `SELECT record_type, count(*) FROM entries
+			WHERE deleted_at IS NULL AND record_type <> 'conversation.chunk'
+			GROUP BY record_type`, nil
+	}
+	return ftsFieldsCTE + `
+		SELECT record_type, count(*) FROM m
+		WHERE (tv_title || tv_summary || tv_topics || tv_body) @@ (SELECT q FROM tsq)
+		GROUP BY record_type`, []any{q}
 }
 
 // transcriptChunk is one ordered slice of a captured conversation, rendered as
