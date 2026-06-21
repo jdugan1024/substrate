@@ -324,8 +324,10 @@ func (w *EnrichmentWorker) extractPendingLinks(ctx context.Context) {
 			embeddingText = e.url
 		} else {
 			extractStatus = "extracted"
+			// Truncate on a rune boundary; slicing raw bytes could split a
+			// multi-byte UTF-8 rune and leave an invalid trailing byte.
 			if len(text) > 2000 {
-				text = text[:2000]
+				text = strings.ToValidUTF8(text[:2000], "")
 			}
 			embeddingText = text
 		}
@@ -388,6 +390,14 @@ func fetchFullText(ctx context.Context, rawURL string) (string, error) {
 		return "", fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
+	// Only HTML/plain-text is extractable. Binary content (PDF, images, etc.)
+	// is not valid UTF-8 and would poison the content_text column, so reject
+	// it here and let the caller mark the entry as failed. A missing
+	// Content-Type is treated leniently as text.
+	if ct := resp.Header.Get("Content-Type"); ct != "" && !isTextContentType(ct) {
+		return "", fmt.Errorf("unsupported content type: %s", ct)
+	}
+
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 	if err != nil {
 		return "", err
@@ -395,5 +405,16 @@ func fetchFullText(ctx context.Context, rawURL string) (string, error) {
 
 	text := reHTMLTag.ReplaceAllString(string(body), " ")
 	text = reSpaces.ReplaceAllString(text, " ")
+	// Scrub any remaining invalid UTF-8 (e.g. a page served in a non-UTF-8
+	// encoding) so the result is always storable in a UTF-8 text column.
+	text = strings.ToValidUTF8(text, "")
 	return strings.TrimSpace(text), nil
+}
+
+// isTextContentType reports whether a Content-Type header denotes extractable
+// text (HTML or plain text). The parameters (e.g. "; charset=utf-8") are ignored.
+func isTextContentType(ct string) bool {
+	mediaType := strings.TrimSpace(strings.SplitN(ct, ";", 2)[0])
+	mediaType = strings.ToLower(mediaType)
+	return mediaType == "text/html" || mediaType == "text/plain" || mediaType == "application/xhtml+xml"
 }

@@ -7,7 +7,58 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"unicode/utf8"
 )
+
+func TestFetchFullText_StripsHTML(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write([]byte(`<html><body><p>Hello</p>  <p>World</p></body></html>`))
+	}))
+	defer srv.Close()
+
+	text, err := fetchFullText(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := "Hello World"; text != want {
+		t.Errorf("got text %q, want %q", text, want)
+	}
+}
+
+// A PDF (or any non-text content type) must not be treated as extractable
+// text: its raw bytes are not valid UTF-8 and poison the content_text column.
+func TestFetchFullText_RejectsNonTextContentType(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Write([]byte{'%', 'P', 'D', 'F', '-', '1', '.', '4', 0xd0, 0xd4, 0x00})
+	}))
+	defer srv.Close()
+
+	_, err := fetchFullText(context.Background(), srv.URL)
+	if err == nil {
+		t.Fatal("expected error for non-text content type, got nil")
+	}
+}
+
+// Even a text/html response can carry bytes that are not valid UTF-8 (e.g. a
+// page served in a single-byte encoding). The extracted text must be scrubbed
+// to valid UTF-8 so Postgres accepts it.
+func TestFetchFullText_SanitizesInvalidUTF8(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte{'<', 'p', '>', 'a', 0xd0, 0xd4, 'b', '<', '/', 'p', '>'})
+	}))
+	defer srv.Close()
+
+	text, err := fetchFullText(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !utf8.ValidString(text) {
+		t.Errorf("returned text is not valid UTF-8: %q", text)
+	}
+}
 
 func TestFetchLinkMeta_OGTags(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
