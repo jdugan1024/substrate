@@ -6,44 +6,7 @@
 <meta name="theme-color" content="#4f46e5">
 <title>Engram — Browse</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #f5f5f5;
-    --card: #ffffff;
-    --text: #1a1a1a;
-    --muted: #6b7280;
-    --border: #e5e7eb;
-    --accent: #4f46e5;
-    --accent-hover: #4338ca;
-    --chip-active-bg: #e0e7ff;
-    --chip-active-text: #3730a3;
-    --error-bg: #fef2f2;
-    --error-text: #991b1b;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #111827;
-      --card: #1f2937;
-      --text: #f9fafb;
-      --muted: #9ca3af;
-      --border: #374151;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
-      --chip-active-bg: #312e81;
-      --chip-active-text: #c7d2fe;
-      --error-bg: #450a0a;
-      --error-text: #fca5a5;
-    }
-  }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100dvh;
-  }
+  /*__SHARED_CSS__*/
 
   /* ── Top bar ── */
   .topbar {
@@ -55,28 +18,18 @@
     padding: 0.75rem 1rem;
   }
 
+  /* Inner wrapper keeps search + chips aligned with the feed column on wide screens. */
+  .topbar-inner {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
   .topbar-row1 {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     margin-bottom: 0.5rem;
   }
-
-  .topbar-title {
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    white-space: nowrap;
-  }
-
-  .topbar-title a {
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  .topbar-title a:hover { color: var(--accent); }
 
   .search-input {
     flex: 1;
@@ -126,6 +79,34 @@
     background: var(--chip-active-bg);
     color: var(--chip-active-text);
     border-color: transparent;
+  }
+
+  /* ── Result header (anchors the result list on wide screens) ── */
+  .result-header {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 1rem 1rem 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .result-context {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .result-sort {
+    font-size: 0.8125rem;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   /* ── Feed ── */
@@ -428,25 +409,31 @@
 </style>
 </head>
 <body>
+<!--__NAV__-->
 
 <div class="topbar" id="topbar">
-  <div class="topbar-row1">
-    <span class="topbar-title">Engram &nbsp;<a href="/">← Capture</a></span>
-    <input class="search-input" id="search" type="search" placeholder="Search memories…" autocomplete="off">
-  </div>
-  <div class="chips" id="chips">
-    <button class="chip active" data-type="">All</button>
-    <button class="chip" data-type="conversation.summary">Chats</button>
-    <button class="chip" data-type="note.thought">Thoughts</button>
-    <button class="chip" data-type="note.link">Links</button>
-    <button class="chip" data-type="crm.contact">Contacts</button>
-    <button class="chip" data-type="crm.interaction">Interactions</button>
-    <button class="chip" data-type="maintenance.task">Tasks</button>
-    <button class="chip" data-type="jobhunt.application">Jobs</button>
+  <div class="topbar-inner">
+    <div class="topbar-row1">
+      <input class="search-input" id="search" type="search" placeholder="Search memories…" autocomplete="off">
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip active" data-type="">All</button>
+      <button class="chip" data-type="conversation.summary">Chats</button>
+      <button class="chip" data-type="note.thought">Thoughts</button>
+      <button class="chip" data-type="note.link">Links</button>
+      <button class="chip" data-type="crm.contact">Contacts</button>
+      <button class="chip" data-type="crm.interaction">Interactions</button>
+      <button class="chip" data-type="maintenance.task">Tasks</button>
+      <button class="chip" data-type="jobhunt.application">Jobs</button>
+    </div>
   </div>
 </div>
 
 <div id="feed-view">
+  <div class="result-header" id="result-header">
+    <span class="result-context" id="result-context">All memories</span>
+    <span class="result-sort">Sorted by recent</span>
+  </div>
   <div class="feed" id="feed"></div>
   <div id="sentinel"></div>
 </div>
@@ -912,6 +899,19 @@ function setupObserver() {
   observer.observe(document.getElementById('sentinel'));
 }
 
+// updateResultContext reflects the active query/filter in the result header.
+function updateResultContext() {
+  const ctx = document.getElementById('result-context');
+  if (!ctx) return;
+  if (currentQ) {
+    ctx.textContent = 'Results for "' + currentQ + '"';
+    return;
+  }
+  const active = document.querySelector('.chip.active');
+  const label = active ? active.textContent.trim() : 'All';
+  ctx.textContent = label === 'All' ? 'All memories' : label;
+}
+
 // ── Search (debounced 300ms) ──────────────────────────────────────────────────
 
 let searchTimer = null;
@@ -919,6 +919,7 @@ document.getElementById('search').addEventListener('input', (e) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     currentQ = e.target.value.trim();
+    updateResultContext();
     reset();
     fetchEntries(true);
   }, 300);
@@ -932,6 +933,7 @@ document.getElementById('chips').addEventListener('click', (e) => {
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   chip.classList.add('active');
   currentType = chip.dataset.type;
+  updateResultContext();
   reset();
   fetchEntries(true);
 });

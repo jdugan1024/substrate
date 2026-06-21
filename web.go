@@ -29,6 +29,45 @@ var browseUI string
 //go:embed web/tokens.html
 var tokensUI string
 
+//go:embed web/shared.css
+var sharedCSS string
+
+// Pages, fully assembled once at startup: shared CSS and the active-mode nav
+// are injected inline so each page is self-contained (no extra request, no CDN).
+var (
+	capturePage string
+	browsePage  string
+)
+
+// navHTML returns the top app bar with the Capture/Browse mode switch, marking
+// the given mode ("capture" or "browse") active.
+func navHTML(active string) string {
+	cap, brw := "", ""
+	if active == "capture" {
+		cap = " active"
+	} else {
+		brw = " active"
+	}
+	return `<header class="appbar">` +
+		`<span class="wordmark">Engram</span>` +
+		`<nav class="modeswitch">` +
+		`<a class="mode` + cap + `" href="/">Capture</a>` +
+		`<a class="mode` + brw + `" href="/browse">Browse</a>` +
+		`</nav></header>`
+}
+
+// buildPage inlines the shared CSS and active-mode nav into a page template by
+// replacing the /*__SHARED_CSS__*/ and <!--__NAV__--> placeholders.
+func buildPage(tmpl, activeMode string) string {
+	p := strings.Replace(tmpl, "/*__SHARED_CSS__*/", sharedCSS, 1)
+	return strings.Replace(p, "<!--__NAV__-->", navHTML(activeMode), 1)
+}
+
+func init() {
+	capturePage = buildPage(webUI, "capture")
+	browsePage = buildPage(browseUI, "browse")
+}
+
 // RegisterWebHandlers adds the web UI and capture endpoint to the mux.
 func RegisterWebHandlers(mux *http.ServeMux, a *brain.App, es *service.EntryService, sessions *WebSessionStore) {
 	mux.HandleFunc("/", serveWebUI())
@@ -54,7 +93,7 @@ func serveWebUI() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		fmt.Fprint(w, webUI)
+		fmt.Fprint(w, capturePage)
 	}
 }
 
@@ -62,7 +101,7 @@ func serveBrowseUI() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
-		fmt.Fprint(w, browseUI)
+		fmt.Fprint(w, browsePage)
 	}
 }
 
@@ -81,6 +120,11 @@ type captureRequest struct {
 type captureResponse struct {
 	Tool    string `json:"tool"`
 	Message string `json:"message"`
+	// ID and LowConfidence let the web UI render friendly copy and a
+	// "View in Browse" deep link without parsing the human Message string
+	// (which is shared with the agent/MCP capture path).
+	ID            string `json:"id"`
+	LowConfidence bool   `json:"low_confidence"`
 }
 
 type entryItem struct {
@@ -335,6 +379,11 @@ func webCaptureHandler(a *brain.App, es *service.EntryService) http.HandlerFunc 
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(captureResponse{Tool: cr.RecordType, Message: cr.Message})
+		json.NewEncoder(w).Encode(captureResponse{
+			Tool:          cr.RecordType,
+			Message:       cr.Message,
+			ID:            cr.EntryID,
+			LowConfidence: cr.Fallback,
+		})
 	}
 }

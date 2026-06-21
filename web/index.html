@@ -11,48 +11,13 @@
 <link rel="apple-touch-icon" href="/icon?s=180">
 <title>Engram</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /*__SHARED_CSS__*/
 
-  :root {
-    --bg: #f5f5f5;
-    --card: #ffffff;
-    --text: #1a1a1a;
-    --muted: #6b7280;
-    --border: #e5e7eb;
-    --accent: #4f46e5;
-    --accent-hover: #4338ca;
-    --success-bg: #ecfdf5;
-    --success-text: #065f46;
-    --error-bg: #fef2f2;
-    --error-text: #991b1b;
-    --mic-active: #dc2626;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #111827;
-      --card: #1f2937;
-      --text: #f9fafb;
-      --muted: #9ca3af;
-      --border: #374151;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
-      --success-bg: #064e3b;
-      --success-text: #a7f3d0;
-      --error-bg: #450a0a;
-      --error-text: #fca5a5;
-    }
-  }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100dvh;
+  .capture-main {
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    padding: 1.5rem 1rem;
+    padding: 0.5rem 1rem 1.5rem;
   }
 
   .card {
@@ -63,13 +28,6 @@
     width: 100%;
     max-width: 640px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  }
-
-  h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 1.25rem;
-    letter-spacing: -0.02em;
   }
 
   textarea {
@@ -136,8 +94,16 @@
     background: var(--border);
     color: var(--text);
     padding: 0.625rem 0.875rem;
-    display: none; /* shown only when SpeechRecognition is available */
+    display: none; /* shown only when SpeechRecognition is available (set to inline-flex) */
   }
+
+  .btn-mic svg { width: 1.125rem; height: 1.125rem; }
+  .btn-mic .mic-label { display: none; }
+  @media (min-width: 480px) { .btn-mic .mic-label { display: inline; } }
+
+  .btn-mic .icon-stop { display: none; }
+  .btn-mic.recording .icon-mic { display: none; }
+  .btn-mic.recording .icon-stop { display: inline; }
 
   .btn-mic.recording {
     background: var(--mic-active);
@@ -163,16 +129,6 @@
     color: var(--error-text);
   }
 
-  .tool-badge {
-    display: inline-block;
-    font-size: 0.75rem;
-    font-weight: 600;
-    opacity: 0.7;
-    margin-right: 0.375rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
   /* Auth section */
   .auth-desc {
     color: var(--muted);
@@ -191,20 +147,44 @@
 
   .btn-login:not(:disabled):hover { background: var(--accent-hover); }
 
-  .browse-link {
-    font-size: 0.875rem;
-    font-weight: 500;
+  /* Helper + hint text under the capture box */
+  .capture-help {
     color: var(--muted);
-    text-decoration: none;
-    margin-left: 0.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin-top: 0.625rem;
   }
-  .browse-link:hover { color: var(--accent); }
+
+  .capture-hint {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-top: 0.375rem;
+  }
+
+  .capture-hint kbd {
+    font-family: inherit;
+    font-weight: 600;
+    background: var(--border);
+    border-radius: 4px;
+    padding: 0.0625rem 0.3125rem;
+  }
+
+  /* Save confirmation */
+  .result-title { font-weight: 600; }
+  .result-detail { display: block; margin-top: 0.125rem; }
+  .result-action {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-weight: 600;
+    color: inherit;
+    text-decoration: underline;
+  }
 </style>
 </head>
 <body>
+<!--__NAV__-->
+<main class="capture-main">
 <div class="card">
-  <h1>Engram <a href="/browse" class="browse-link">Browse →</a></h1>
-
   <div id="auth-section" style="display:none">
     <p class="auth-desc">Sign in to capture notes, interactions, and tasks.</p>
     <button class="btn-login" id="login-btn" onclick="window.location.href='/web/login'">Log In</button>
@@ -217,12 +197,19 @@
       autofocus
     ></textarea>
     <div class="actions">
-      <button class="btn-mic" id="mic-btn" aria-label="Dictate">🎤</button>
-      <button class="btn-primary" id="submit-btn" onclick="submitNote()">Save</button>
+      <button class="btn-mic" id="mic-btn" type="button" aria-label="Start voice capture" title="Start voice capture">
+        <svg class="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <svg class="icon-stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        <span class="mic-label">Speak</span>
+      </button>
+      <button class="btn-primary" id="submit-btn" type="button" onclick="submitNote()">Save memory</button>
     </div>
+    <p class="capture-help">Engram will summarize, classify, and make this searchable.</p>
+    <p class="capture-hint"><kbd>⌘</kbd>+<kbd>Enter</kbd> to save</p>
     <div class="result" id="result-area" role="status" aria-live="polite"></div>
   </div>
 </div>
+</main>
 
 <script>
 // ── Auth (server-side session cookie, set by /web/login → /web/callback) ──────
@@ -241,25 +228,61 @@ function showCaptureSection() {
     textarea.value = draft;
     sessionStorage.removeItem('engram_draft');
   }
+  autoGrow();
   textarea.focus();
 }
 
-function showResult(type, message, tool) {
+// Friendly singular labels for the record types capture can produce. Falls back
+// to the last dotted segment for anything not listed.
+const TYPE_LABELS = {
+  'note.thought': 'a thought',
+  'note.link': 'a link',
+  'note.unstructured': 'a note',
+  'crm.contact': 'a contact',
+  'crm.interaction': 'an interaction',
+  'maintenance.task': 'a task',
+  'jobhunt.application': 'a job application',
+  'conversation.summary': 'a conversation',
+};
+
+function friendlyType(t) {
+  if (TYPE_LABELS[t]) return TYPE_LABELS[t];
+  return t ? 'a ' + t.split('.').pop().replace(/_/g, ' ') : 'a note';
+}
+
+// showResult renders an error message in the result area.
+function showResult(type, message) {
   const el = document.getElementById('result-area');
   el.className = 'result ' + type;
   el.style.display = 'block';
-  if (tool && type === 'success') {
-    const badge = document.createElement('span');
-    badge.className = 'tool-badge';
-    badge.textContent = tool.replace(/_/g, ' ');
-    el.textContent = '';
-    el.appendChild(badge);
-    el.appendChild(document.createTextNode(message));
-  } else {
-    el.textContent = message;
+  el.textContent = message;
+}
+
+// showSaved renders the friendly save confirmation with a View in Browse link.
+function showSaved(data) {
+  const el = document.getElementById('result-area');
+  el.className = 'result success';
+  el.style.display = 'block';
+  el.innerHTML = '';
+
+  const title = document.createElement('span');
+  title.className = 'result-title';
+  title.textContent = data.low_confidence ? 'Saved as a note' : 'Saved as ' + friendlyType(data.tool);
+  el.appendChild(title);
+
+  if (data.low_confidence) {
+    const detail = document.createElement('span');
+    detail.className = 'result-detail';
+    detail.textContent = "Engram wasn't confident enough to classify this further.";
+    el.appendChild(detail);
   }
-  if (type === 'success') {
-    setTimeout(() => { el.style.display = 'none'; }, 4000);
+
+  if (data.id) {
+    const link = document.createElement('a');
+    link.className = 'result-action';
+    link.href = '/browse?entry=' + encodeURIComponent(data.id);
+    link.textContent = 'View in Browse →';
+    el.appendChild(link);
   }
 }
 
@@ -285,6 +308,16 @@ function setupMic() {
   let manualStop = false;
   let startedAt = 0;
 
+  // setMicState swaps the icon (via CSS), label, and accessible name.
+  function setMicState(recording) {
+    micBtn.classList.toggle('recording', recording);
+    const name = recording ? 'Stop voice capture' : 'Start voice capture';
+    micBtn.setAttribute('aria-label', name);
+    micBtn.setAttribute('title', name);
+    const label = micBtn.querySelector('.mic-label');
+    if (label) label.textContent = recording ? 'Stop' : 'Speak';
+  }
+
   function hideMicBtn(reason) {
     micBtn.style.display = 'none';
     console.info('Mic button hidden:', reason);
@@ -299,16 +332,12 @@ function setupMic() {
     r.onstart = () => {
       listening = true;
       startedAt = Date.now();
-      micBtn.textContent = '⏹';
-      micBtn.classList.add('recording');
-      micBtn.setAttribute('aria-label', 'Stop recording');
+      setMicState(true);
     };
 
     r.onend = () => {
       listening = false;
-      micBtn.textContent = '🎤';
-      micBtn.classList.remove('recording');
-      micBtn.setAttribute('aria-label', 'Dictate');
+      setMicState(false);
     };
 
     r.onresult = (e) => {
@@ -323,8 +352,7 @@ function setupMic() {
 
     r.onerror = (e) => {
       listening = false;
-      micBtn.textContent = '🎤';
-      micBtn.classList.remove('recording');
+      setMicState(false);
 
       if (manualStop) { manualStop = false; return; }
 
@@ -391,14 +419,24 @@ async function submitNote() {
       return;
     }
 
-    showResult('success', data.message, data.tool);
+    showSaved(data);
     textarea.value = '';
+    autoGrow();
   } catch (e) {
     showResult('error', 'Network error — please try again.');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Save';
+    btn.textContent = 'Save memory';
   }
+}
+
+// ── Auto-growing textarea ───────────────────────────────────────────────────────
+
+function autoGrow() {
+  const ta = document.getElementById('note-input');
+  if (!ta) return;
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
 }
 
 // Submit on Ctrl/Cmd+Enter
@@ -419,6 +457,7 @@ function maybePreFillShare() {
   const shareTitle = params.get('share_title');
   const textarea = document.getElementById('note-input');
   textarea.value = 'link:' + shareURL + (shareTitle ? '  ' + shareTitle : '');
+  autoGrow();
   window.history.replaceState({}, '', '/');
 }
 
@@ -442,6 +481,7 @@ async function init() {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupMic();
+  document.getElementById('note-input').addEventListener('input', autoGrow);
   init();
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js');

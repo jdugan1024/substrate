@@ -32,6 +32,10 @@ type CaptureResult struct {
 	EntryID    string
 	RecordType string
 	Message    string
+	// Fallback is true when the entry could not be confidently classified and
+	// was stored as note.unstructured. The web UI uses this to show friendly
+	// low-confidence guidance instead of the raw failure_mode.
+	Fallback bool
 }
 
 // Capture extracts, validates, and persists an entry from free-form text.
@@ -108,6 +112,7 @@ func (s *EntryService) Capture(ctx context.Context, text, source string) (*Captu
 		EntryID:    entryID,
 		RecordType: params.RecordType,
 		Message:    msg,
+		Fallback:   !vr.Valid,
 	}, nil
 }
 
@@ -229,6 +234,7 @@ func (s *EntryService) persistFallback(ctx context.Context, text, source string,
 		EntryID:    entryID,
 		RecordType: "note.unstructured",
 		Message:    fmt.Sprintf("Saved as note [%s] (id: %s)", vr.FailureMode, entryID),
+		Fallback:   true,
 	}, nil
 }
 
