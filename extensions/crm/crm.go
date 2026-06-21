@@ -84,7 +84,7 @@ type contact struct {
 	Email         *string
 	Phone         *string
 	LinkedInURL   *string
-	HowWeMet     *string
+	HowWeMet      *string
 	Tags          []string
 	Notes         *string
 	LastContacted *time.Time

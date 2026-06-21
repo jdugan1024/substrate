@@ -78,28 +78,28 @@ type member struct {
 }
 
 type activity struct {
-	ID             string
-	Title          string
-	MemberName     *string
-	ActivityType   *string
-	Location       *string
-	StartDate      time.Time
-	EndDate        *time.Time
-	StartTime      *string
-	EndTime        *string
-	DayOfWeek      *string
-	Recurring      bool
-	Notes          *string
+	ID           string
+	Title        string
+	MemberName   *string
+	ActivityType *string
+	Location     *string
+	StartDate    time.Time
+	EndDate      *time.Time
+	StartTime    *string
+	EndTime      *string
+	DayOfWeek    *string
+	Recurring    bool
+	Notes        *string
 }
 
 type importantDate struct {
-	ID               string
-	Title            string
-	MemberName       *string
-	EventDate        time.Time
-	RecurringYearly  bool
-	ReminderDays     *int
-	Notes            *string
+	ID              string
+	Title           string
+	MemberName      *string
+	EventDate       time.Time
+	RecurringYearly bool
+	ReminderDays    *int
+	Notes           *string
 }
 
 func addMember(a *brain.App) server.ToolHandlerFunc {

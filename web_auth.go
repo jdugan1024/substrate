@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	webCallbackURL = "https://engram.x1024.net/web/callback"
-	sessionTTL     = 30 * 24 * time.Hour
+	webCallbackURL  = "https://engram.x1024.net/web/callback"
+	sessionTTL      = 30 * 24 * time.Hour
 	pendingLoginTTL = 10 * time.Minute
 )
 

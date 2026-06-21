@@ -4,8 +4,8 @@
 package main
 
 import (
-	"encoding/json"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"

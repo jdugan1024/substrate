@@ -54,14 +54,14 @@ func Register(s *server.MCPServer, a *brain.App) {
 }
 
 type item struct {
-	ID          string
-	Name        string
-	Category    *string
-	Location    *string
-	Details     json.RawMessage
-	Notes       *string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID        string
+	Name      string
+	Category  *string
+	Location  *string
+	Details   json.RawMessage
+	Notes     *string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type vendor struct {
@@ -123,7 +123,7 @@ func addItem(a *brain.App) server.ToolHandlerFunc {
 
 func searchItems(a *brain.App) server.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		query, _    := req.GetArguments()["query"].(string)
+		query, _ := req.GetArguments()["query"].(string)
 		category, _ := req.GetArguments()["category"].(string)
 		location, _ := req.GetArguments()["location"].(string)
 
@@ -199,11 +199,11 @@ func addVendor(a *brain.App) server.ToolHandlerFunc {
 			return brain.ToolError("name is required"), nil
 		}
 		serviceType, _ := req.GetArguments()["service_type"].(string)
-		phone, _       := req.GetArguments()["phone"].(string)
-		email, _       := req.GetArguments()["email"].(string)
-		website, _     := req.GetArguments()["website"].(string)
-		notes, _       := req.GetArguments()["notes"].(string)
-		lastUsed, _    := req.GetArguments()["last_used"].(string)
+		phone, _ := req.GetArguments()["phone"].(string)
+		email, _ := req.GetArguments()["email"].(string)
+		website, _ := req.GetArguments()["website"].(string)
+		notes, _ := req.GetArguments()["notes"].(string)
+		lastUsed, _ := req.GetArguments()["last_used"].(string)
 
 		var rating *int
 		if v, ok := req.GetArguments()["rating"].(float64); ok && v >= 1 && v <= 5 {

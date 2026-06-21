@@ -30,13 +30,13 @@ var typeAliases = map[string]string{
 	"application": "jobhunt.application",
 	"link":        "note.link",
 	// canonical names also accepted
-	"note.thought":         "note.thought",
-	"note.unstructured":    "note.unstructured",
-	"crm.contact":          "crm.contact",
-	"crm.interaction":      "crm.interaction",
-	"maintenance.task":     "maintenance.task",
-	"jobhunt.application":  "jobhunt.application",
-	"note.link":            "note.link",
+	"note.thought":        "note.thought",
+	"note.unstructured":   "note.unstructured",
+	"crm.contact":         "crm.contact",
+	"crm.interaction":     "crm.interaction",
+	"maintenance.task":    "maintenance.task",
+	"jobhunt.application": "jobhunt.application",
+	"note.link":           "note.link",
 }
 
 // RegisterAddItem adds the unified add_item tool to the MCP server.

@@ -41,13 +41,13 @@ func init() {
 
 // Envelope is the expected JSON structure returned by the LLM extractor.
 type Envelope struct {
-	RecordType    string          `json:"record_type"`
-	SchemaVersion string          `json:"schema_version"`
-	Payload       json.RawMessage `json:"payload"`
-	ContentText   string          `json:"content_text"`
-	Tags          []string        `json:"tags"`
+	RecordType    string           `json:"record_type"`
+	SchemaVersion string           `json:"schema_version"`
+	Payload       json.RawMessage  `json:"payload"`
+	ContentText   string           `json:"content_text"`
+	Tags          []string         `json:"tags"`
 	Entities      EnvelopeEntities `json:"entities"`
-	Confidence    float64         `json:"confidence"`
+	Confidence    float64          `json:"confidence"`
 }
 
 // EnvelopeEntities holds extracted named entities from the LLM.

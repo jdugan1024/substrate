@@ -171,7 +171,7 @@ func (a *App) GetEmbedding(ctx context.Context, text string) (pgvector.Vector, e
 // ExtractMetadata uses an LLM to pull structured metadata from a thought.
 func (a *App) ExtractMetadata(ctx context.Context, text string) (*ThoughtMetadata, error) {
 	body, _ := json.Marshal(map[string]any{
-		"model": "openai/gpt-4o-mini",
+		"model":           "openai/gpt-4o-mini",
 		"response_format": map[string]string{"type": "json_object"},
 		"messages": []map[string]string{
 			{

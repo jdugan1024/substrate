@@ -142,8 +142,8 @@ func listThoughts(a *brain.App) server.ToolHandlerFunc {
 		if v, ok := req.GetArguments()["limit"].(float64); ok && v > 0 {
 			limit = int(v)
 		}
-		typeFilter, _   := req.GetArguments()["type"].(string)
-		topicFilter, _  := req.GetArguments()["topic"].(string)
+		typeFilter, _ := req.GetArguments()["type"].(string)
+		topicFilter, _ := req.GetArguments()["topic"].(string)
 		personFilter, _ := req.GetArguments()["person"].(string)
 		var days int
 		if v, ok := req.GetArguments()["days"].(float64); ok && v > 0 {
