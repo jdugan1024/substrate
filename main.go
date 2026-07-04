@@ -19,13 +19,13 @@ import (
 
 	"github.com/mark3labs/mcp-go/server"
 
-	"open-brain-go/brain"
-	"open-brain-go/brain/repository"
-	"open-brain-go/brain/service"
-	"open-brain-go/core"
-	"open-brain-go/extensions/calendar"
-	"open-brain-go/extensions/household"
-	"open-brain-go/extensions/meals"
+	"substrate/brain"
+	"substrate/brain/repository"
+	"substrate/brain/service"
+	"substrate/core"
+	"substrate/extensions/calendar"
+	"substrate/extensions/household"
+	"substrate/extensions/meals"
 )
 
 // pendingAuth tracks the original redirect_uri from an MCP client so the
@@ -40,7 +40,7 @@ var (
 	pendingAuthsMu sync.Mutex
 )
 
-const callbackURL = "https://engram.x1024.net/oauth/callback"
+const callbackURL = "https://substrate.x1024.net/oauth/callback"
 
 func main() {
 	dbURL := os.Getenv("DATABASE_URL")
@@ -102,7 +102,7 @@ func main() {
 	sessionStore := NewWebSessionStore()
 	sessionStore.StartCleanup(workerCtx)
 
-	s := server.NewMCPServer("open-brain", "1.0.0")
+	s := server.NewMCPServer("substrate", "1.0.0")
 
 	core.Register(s, app)
 	core.RegisterAddItem(s, app, es)
@@ -147,7 +147,7 @@ func authMiddleware(a *brain.App, next http.Handler) http.Handler {
 		rawToken := strings.TrimPrefix(auth, "Bearer ")
 
 		// Personal access token path: headless clients (e.g. the capture daemon)
-		// send a token with the engram_pat_ prefix. Resolve it directly without OIDC.
+		// send a token with the substrate_pat_ prefix. Resolve it directly without OIDC.
 		if strings.HasPrefix(rawToken, tokenPrefix) {
 			tokenHash := hashAPIToken(rawToken)
 			userID, err := repository.GetUserIDByTokenHash(r.Context(), a.Pool, tokenHash)
@@ -182,16 +182,16 @@ func authMiddleware(a *brain.App, next http.Handler) http.Handler {
 }
 
 // oauthMetadataHandler serves RFC 8414 OAuth authorization server metadata.
-// All OAuth endpoints point to engram, which proxies to Authelia. This lets
-// engram handle redirect_uri translation for localhost MCP clients.
+// All OAuth endpoints point to substrate, which proxies to Authelia. This lets
+// substrate handle redirect_uri translation for localhost MCP clients.
 func oauthMetadataHandler(issuerURL, clientID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
-			"issuer":                           "https://engram.x1024.net",
-			"authorization_endpoint":           "https://engram.x1024.net/oauth/authorize",
-			"token_endpoint":                   "https://engram.x1024.net/oauth/token",
-			"registration_endpoint":            "https://engram.x1024.net/oauth/register",
+			"issuer":                           "https://substrate.x1024.net",
+			"authorization_endpoint":           "https://substrate.x1024.net/oauth/authorize",
+			"token_endpoint":                   "https://substrate.x1024.net/oauth/token",
+			"registration_endpoint":            "https://substrate.x1024.net/oauth/register",
 			"scopes_supported":                 []string{"openid", "profile", "email", "offline_access"},
 			"response_types_supported":         []string{"code"},
 			"grant_types_supported":            []string{"authorization_code", "refresh_token"},
@@ -221,7 +221,7 @@ func clientRegistrationHandler(clientID string) http.HandlerFunc {
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]any{
 			"client_id":                  clientID,
-			"client_name":                "Engram MCP Server",
+			"client_name":                "Substrate MCP Server",
 			"redirect_uris":              redirectURIs,
 			"grant_types":                []string{"authorization_code", "refresh_token"},
 			"response_types":             []string{"code"},
@@ -232,7 +232,7 @@ func clientRegistrationHandler(clientID string) http.HandlerFunc {
 
 // oauthAuthorizeHandler proxies the authorization request to Authelia.
 // It saves the MCP client's original redirect_uri (e.g. http://localhost:PORT/callback)
-// and substitutes engram's own callback URL, which Authelia has pre-registered.
+// and substitutes substrate's own callback URL, which Authelia has pre-registered.
 func oauthAuthorizeHandler(issuerURL, clientID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		originalRedirect := r.URL.Query().Get("redirect_uri")
@@ -258,7 +258,7 @@ func oauthAuthorizeHandler(issuerURL, clientID string) http.HandlerFunc {
 		clientState := r.URL.Query().Get("state")
 		wrappedState := mappingKey + ":" + clientState
 
-		// Build the Authelia authorization URL with engram's fixed callback.
+		// Build the Authelia authorization URL with substrate's fixed callback.
 		params := url.Values{}
 		params.Set("response_type", "code")
 		params.Set("client_id", clientID)
@@ -325,7 +325,7 @@ func oauthCallbackHandler() http.HandlerFunc {
 }
 
 // oauthTokenHandler proxies token requests to Authelia, replacing the
-// MCP client's localhost redirect_uri with engram's registered callback URL.
+// MCP client's localhost redirect_uri with substrate's registered callback URL.
 func oauthTokenHandler(issuerURL, clientID string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
@@ -333,12 +333,12 @@ func oauthTokenHandler(issuerURL, clientID string) http.HandlerFunc {
 			return
 		}
 
-		// Build the upstream request with engram's registered redirect_uri.
+		// Build the upstream request with substrate's registered redirect_uri.
 		form := url.Values{}
 		for k, vs := range r.Form {
 			for _, v := range vs {
 				if k == "redirect_uri" {
-					// Swap localhost redirect to engram's registered callback.
+					// Swap localhost redirect to substrate's registered callback.
 					form.Set(k, callbackURL)
 				} else {
 					form.Add(k, v)

@@ -14,8 +14,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"open-brain-go/brain"
-	"open-brain-go/brain/service"
+	"substrate/brain"
+	"substrate/brain/service"
 )
 
 // typeAliases maps short user-facing prefixes to canonical record_type values.

@@ -23,12 +23,12 @@ func TestIngestClientPostsBearerBatch(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewIngestClient(srv.URL, "engram_pat_test", srv.Client())
+	client := NewIngestClient(srv.URL, "substrate_pat_test", srv.Client())
 	res, err := client.Post(context.Background(), IngestBatch{Tool: "claude-code", SessionID: "s1", Messages: []IngestMessage{{Role: "human", Text: "hello"}}})
 	if err != nil {
 		t.Fatalf("Post: %v", err)
 	}
-	if gotAuth != "Bearer engram_pat_test" {
+	if gotAuth != "Bearer substrate_pat_test" {
 		t.Fatalf("auth = %q", gotAuth)
 	}
 	if gotBatch.SessionID != "s1" || res.MessageCount != 1 {

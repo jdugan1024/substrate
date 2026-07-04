@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 
-	"open-brain-go/brain/service"
+	"substrate/brain/service"
 )
 
 func ingestHandler(ingest *service.IngestService) http.HandlerFunc {

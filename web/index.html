@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Engram">
+<meta name="apple-mobile-web-app-title" content="Substrate">
 <meta name="theme-color" content="#4f46e5">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon?s=180">
-<title>Engram</title>
+<title>Substrate</title>
 <style>
   /*__SHARED_CSS__*/
 
@@ -204,7 +204,7 @@
       </button>
       <button class="btn-primary" id="submit-btn" type="button" onclick="submitNote()">Save memory</button>
     </div>
-    <p class="capture-help">Engram will summarize, classify, and make this searchable.</p>
+    <p class="capture-help">Substrate will summarize, classify, and make this searchable.</p>
     <p class="capture-hint"><kbd>⌘</kbd>+<kbd>Enter</kbd> to save</p>
     <div class="result" id="result-area" role="status" aria-live="polite"></div>
   </div>
@@ -223,10 +223,10 @@ function showCaptureSection() {
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('capture-section').style.display = '';
   const textarea = document.getElementById('note-input');
-  const draft = sessionStorage.getItem('engram_draft');
+  const draft = sessionStorage.getItem('substrate_draft');
   if (draft) {
     textarea.value = draft;
-    sessionStorage.removeItem('engram_draft');
+    sessionStorage.removeItem('substrate_draft');
   }
   autoGrow();
   textarea.focus();
@@ -273,7 +273,7 @@ function showSaved(data) {
   if (data.low_confidence) {
     const detail = document.createElement('span');
     detail.className = 'result-detail';
-    detail.textContent = "Engram wasn't confident enough to classify this further.";
+    detail.textContent = "Substrate wasn't confident enough to classify this further.";
     el.appendChild(detail);
   }
 
@@ -408,7 +408,7 @@ async function submitNote() {
 
     if (resp.status === 401) {
       const ta = document.getElementById('note-input');
-      if (ta.value.trim()) sessionStorage.setItem('engram_draft', ta.value);
+      if (ta.value.trim()) sessionStorage.setItem('substrate_draft', ta.value);
       showAuthSection();
       return;
     }

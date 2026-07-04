@@ -13,7 +13,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"open-brain-go/brain"
+	"substrate/brain"
 )
 
 // Register adds professional CRM tools to the MCP server.

@@ -17,11 +17,11 @@ import (
 	"sync"
 	"time"
 
-	"open-brain-go/brain"
+	"substrate/brain"
 )
 
 const (
-	webCallbackURL  = "https://engram.x1024.net/web/callback"
+	webCallbackURL  = "https://substrate.x1024.net/web/callback"
 	sessionTTL      = 30 * 24 * time.Hour
 	pendingLoginTTL = 10 * time.Minute
 )
@@ -126,10 +126,10 @@ func (s *WebSessionStore) StartCleanup(ctx context.Context) {
 	}()
 }
 
-// webAuthMiddleware validates the engram_session cookie and injects userID into context.
+// webAuthMiddleware validates the substrate_session cookie and injects userID into context.
 func webAuthMiddleware(sessions *WebSessionStore, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("engram_session")
+		cookie, err := r.Cookie("substrate_session")
 		if err != nil {
 			http.Error(w, `{"error":"not authenticated"}`, http.StatusUnauthorized)
 			return
@@ -149,7 +149,7 @@ func webAuthMiddleware(sessions *WebSessionStore, next http.Handler) http.Handle
 // Used by the web UI on init to decide whether to show auth or content.
 func webCheckHandler(sessions *WebSessionStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("engram_session")
+		cookie, err := r.Cookie("substrate_session")
 		if err != nil {
 			http.Error(w, `{"error":"not authenticated"}`, http.StatusUnauthorized)
 			return
@@ -253,7 +253,7 @@ func webCallbackHandler(a *brain.App, issuerURL, clientID string, sessions *WebS
 
 		sessionID := sessions.Create(userID)
 		http.SetCookie(w, &http.Cookie{
-			Name:     "engram_session",
+			Name:     "substrate_session",
 			Value:    sessionID,
 			Path:     "/",
 			HttpOnly: true,
@@ -268,7 +268,7 @@ func webCallbackHandler(a *brain.App, issuerURL, clientID string, sessions *WebS
 // webLogoutHandler clears the session cookie and deletes the server-side session.
 func webLogoutHandler(sessions *WebSessionStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if cookie, err := r.Cookie("engram_session"); err == nil {
+		if cookie, err := r.Cookie("substrate_session"); err == nil {
 			sessions.Delete(cookie.Value)
 		}
 		clearSessionCookie(w)
@@ -278,7 +278,7 @@ func webLogoutHandler(sessions *WebSessionStore) http.HandlerFunc {
 
 func clearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     "engram_session",
+		Name:     "substrate_session",
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,

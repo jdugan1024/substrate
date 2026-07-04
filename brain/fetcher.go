@@ -41,7 +41,7 @@ func FetchLinkMeta(ctx context.Context, rawURL string) (title, description strin
 	if err != nil {
 		return "", "", fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Engram/1.0; +https://engram.x1024.net)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Substrate/1.0; +https://substrate.x1024.net)")
 
 	resp, err := linkHTTPClient.Do(req)
 	if err != nil {
@@ -166,10 +166,10 @@ func NewEnrichmentWorker(app *App) *EnrichmentWorker {
 }
 
 // Run starts the enrichment loop. It runs until ctx is cancelled.
-// The interval is controlled by ENGRAM_ENRICHMENT_INTERVAL (default 10m).
+// The interval is controlled by SUBSTRATE_ENRICHMENT_INTERVAL (default 10m).
 func (w *EnrichmentWorker) Run(ctx context.Context) {
 	interval := 10 * time.Minute
-	if v := os.Getenv("ENGRAM_ENRICHMENT_INTERVAL"); v != "" {
+	if v := os.Getenv("SUBSTRATE_ENRICHMENT_INTERVAL"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			interval = d
 		}
@@ -379,7 +379,7 @@ func fetchFullText(ctx context.Context, rawURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Engram/1.0; +https://engram.x1024.net)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Substrate/1.0; +https://substrate.x1024.net)")
 
 	resp, err := linkHTTPClient.Do(req)
 	if err != nil {

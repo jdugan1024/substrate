@@ -1,4 +1,4 @@
-/* Shared design tokens, base reset, and top-nav for all Engram pages.
+/* Shared design tokens, base reset, and top-nav for all Substrate pages.
    Injected inline into each page at serve time (see web.go) — no external
    request, no CDN. Edit here once; both Capture and Browse pick it up. */
 

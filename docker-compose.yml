@@ -3,7 +3,7 @@ services:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
-      POSTGRES_DB: openbrain
+      POSTGRES_DB: substrate
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       APP_USER_PASSWORD: ${APP_USER_PASSWORD}
@@ -20,14 +20,14 @@ services:
       - ./extensions/jobhunt/schema.sql:/docker-entrypoint-initdb.d/25-jobhunt.sql
       - ./docker/post-schema-grants.sh:/docker-entrypoint-initdb.d/90-grants.sh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d openbrain"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d substrate"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   server:
     build: .
-    container_name: engram
+    container_name: substrate
     restart: unless-stopped
     depends_on:
       db:
@@ -37,7 +37,7 @@ services:
       ENRICHMENT_DATABASE_URL: ${ENRICHMENT_DATABASE_URL}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       AUTHELIA_ISSUER_URL: https://auth.x1024.net
-      OIDC_CLIENT_ID: engram
+      OIDC_CLIENT_ID: substrate
       PORT: "8080"
     networks:
       - caddy_network

@@ -1,4 +1,4 @@
-module open-brain-go
+module substrate
 
 go 1.25.0
 

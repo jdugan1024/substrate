@@ -1,4 +1,4 @@
-// ABOUTME: Web UI handlers for engram.
+// ABOUTME: Web UI handlers for substrate.
 // ABOUTME: Serves capture and browse UIs, and the GET /entries API endpoint.
 
 package main
@@ -15,9 +15,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"open-brain-go/brain"
-	"open-brain-go/brain/service"
-	"open-brain-go/core"
+	"substrate/brain"
+	"substrate/brain/service"
+	"substrate/core"
 )
 
 //go:embed web/index.html
@@ -49,7 +49,7 @@ func navHTML(active string) string {
 		brw = " active"
 	}
 	return `<header class="appbar">` +
-		`<span class="wordmark">Engram</span>` +
+		`<span class="wordmark">Substrate</span>` +
 		`<nav class="modeswitch">` +
 		`<a class="mode` + cap + `" href="/">Capture</a>` +
 		`<a class="mode` + brw + `" href="/browse">Browse</a>` +

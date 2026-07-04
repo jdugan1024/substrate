@@ -5,7 +5,7 @@ source of truth; `CLAUDE.md` just imports it.
 
 ## Overview
 
-Engram is a self-hosted **Go MCP server for persistent AI memory**, backed by
+Substrate is a self-hosted **Go MCP server for persistent AI memory**, backed by
 PostgreSQL + pgvector. It gives any MCP-compatible client (Claude Desktop,
 Claude Code, etc.) a personal memory layer: capture freeform thoughts with
 automatic metadata extraction and embeddings, recall them by semantic search,
@@ -13,8 +13,8 @@ and store structured data through extensions. Multi-user, with per-user
 isolation enforced by PostgreSQL Row Level Security (RLS). Derived from
 [Open Brain](https://github.com/NateBJones-Projects/OB1).
 
-> The Go module is named `open-brain-go` for historical reasons. This is
-> intentional — do not "fix" it.
+> The Go module was historically named `open-brain-go`; it has been renamed to
+> `substrate` to match the project.
 
 ## Build, test, run
 
@@ -32,20 +32,20 @@ before considering any change complete. Tests live next to the code they cover
 Run the local stack (secrets injected via SOPS):
 
 ```bash
-sops exec-env secrets/engram.env 'docker compose up -d --build'
+sops exec-env secrets/substrate.env 'docker compose up -d --build'
 docker compose logs -f
 ```
 
-**Guardrail:** the `engram` stack above is **live**. For verifying changes, use
+**Guardrail:** the `substrate` stack above is **live**. For verifying changes, use
 the isolated test stack instead, and never decrypt secrets or touch the live
 stack unless the user explicitly asks:
 
 ```bash
 # isolated smoke-test stack — distinct project name, never touches live data
-sops exec-env secrets/engram.env \
-  'docker compose -p engram-test -f docker-compose.test.yml up -d --build'
+sops exec-env secrets/substrate.env \
+  'docker compose -p substrate-test -f docker-compose.test.yml up -d --build'
 # tear down (wipes the test DB volume)
-docker compose -p engram-test -f docker-compose.test.yml down -v
+docker compose -p substrate-test -f docker-compose.test.yml down -v
 ```
 
 The server listens on `:8080` (Streamable HTTP MCP transport).
@@ -64,8 +64,8 @@ The server listens on `:8080` (Streamable HTTP MCP transport).
 - **`extensions/<name>/`** — self-contained domain modules (household,
   maintenance, calendar, meals, crm, jobhunt). Each owns its `schema.sql` and is
   wired in through the registry.
-- **`cmd/engram-capture/`** — a separate daemon that watches and parses Claude
-  Code and Codex transcripts and ingests them into Engram.
+- **`cmd/substrate-capture/`** — a separate daemon that watches and parses Claude
+  Code and Codex transcripts and ingests them into Substrate.
 
 **Data layer:** PostgreSQL 17 + pgvector. Embeddings and metadata extraction go
 through OpenRouter. The schema is auto-applied on first boot by the init scripts
@@ -86,13 +86,12 @@ no raw SQL in handlers).
 ## Secrets & deploy
 
 Secrets are managed with **SOPS + age**. The encrypted file is
-`secrets/engram.env`; the age key lives at `~/.config/sops/age/keys.txt`. Never
+`secrets/substrate.env`; the age key lives at `~/.config/sops/age/keys.txt`. Never
 commit plaintext secrets, and never print decrypted secret values.
 
 ## Gotchas
 
-- Module name is `open-brain-go` (see Overview) — don't rename it.
 - Schema init scripts run **only on a fresh DB volume**. Changes to `schema.sql`
   or an extension's `schema.sql` won't apply to an existing database. Test
   schema changes against a wiped test stack
-  (`docker compose -p engram-test ... down -v` then `up`).
+  (`docker compose -p substrate-test ... down -v` then `up`).

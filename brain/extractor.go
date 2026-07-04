@@ -19,7 +19,7 @@ import (
 
 // MinConfidence returns the configured confidence threshold (default 0.7).
 func MinConfidence() float64 {
-	if v := os.Getenv("ENGRAM_EXTRACTION_MIN_CONFIDENCE"); v != "" {
+	if v := os.Getenv("SUBSTRATE_EXTRACTION_MIN_CONFIDENCE"); v != "" {
 		var f float64
 		if _, err := fmt.Sscanf(v, "%f", &f); err == nil && f > 0 && f <= 1 {
 			return f

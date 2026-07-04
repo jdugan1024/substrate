@@ -1,6 +1,6 @@
-# Engram
+# Substrate
 
-A self-hosted MCP server for persistent AI memory, built in Go. Engram gives any MCP-compatible AI client (Claude Desktop, etc.) a personal memory layer backed by PostgreSQL and pgvector.
+A self-hosted MCP server for persistent AI memory, built in Go. Substrate gives any MCP-compatible AI client (Claude Desktop, etc.) a personal memory layer backed by PostgreSQL and pgvector.
 
 ## What it does
 
@@ -11,14 +11,14 @@ A self-hosted MCP server for persistent AI memory, built in Go. Engram gives any
 
 ## Quick start
 
-Secrets are managed with [SOPS](https://github.com/getsops/sops) + [age](https://github.com/FiloSottile/age). The encrypted secrets file is `secrets/engram.env`.
+Secrets are managed with [SOPS](https://github.com/getsops/sops) + [age](https://github.com/FiloSottile/age). The encrypted secrets file is `secrets/substrate.env`.
 
 ```bash
 # Edit secrets (opens decrypted in $EDITOR, re-encrypts on save)
-sops secrets/engram.env
+sops secrets/substrate.env
 
 # Start the server
-sops exec-env secrets/engram.env 'docker compose up -d'
+sops exec-env secrets/substrate.env 'docker compose up -d'
 
 # Watch logs
 docker compose logs -f
@@ -37,4 +37,4 @@ The server listens on `http://localhost:8080`. Point your MCP client at it with 
 
 ## Origins
 
-Engram is derived from [Open Brain](https://github.com/NateBJones-Projects/OB1) by Nate B. Jones, a persistent AI memory system. Open Brain provides the database schema, extension architecture, and learning path that Engram builds on.
+Substrate is derived from [Open Brain](https://github.com/NateBJones-Projects/OB1) by Nate B. Jones, a persistent AI memory system. Open Brain provides the database schema, extension architecture, and learning path that Substrate builds on. (The Go module was historically named `open-brain-go`; it has since been renamed to `substrate`.)

@@ -10,13 +10,13 @@ import (
 	"log"
 	"net/http"
 
-	"open-brain-go/brain"
-	"open-brain-go/brain/repository"
+	"substrate/brain"
+	"substrate/brain/repository"
 )
 
 // tokenPrefix marks a bearer token as a PAT so authMiddleware can route it to
 // the PAT lookup instead of OIDC verification.
-const tokenPrefix = "engram_pat_"
+const tokenPrefix = "substrate_pat_"
 
 // generateAPIToken returns a new opaque token (to show the user once) and its
 // SHA-256 hex hash (to store).

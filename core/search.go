@@ -14,7 +14,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"open-brain-go/brain"
+	"substrate/brain"
 )
 
 // RegisterSearch adds the unified search tool to the MCP server.

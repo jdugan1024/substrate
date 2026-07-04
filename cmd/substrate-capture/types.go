@@ -1,4 +1,4 @@
-// ABOUTME: Shared types for the local Engram capture daemon.
+// ABOUTME: Shared types for the local Substrate capture daemon.
 // ABOUTME: Kept lightweight so the daemon does not import server DB dependencies.
 
 package main

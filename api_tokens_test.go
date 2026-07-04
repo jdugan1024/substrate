@@ -34,7 +34,7 @@ func TestHashAPIToken_MatchesGenerated(t *testing.T) {
 }
 
 func TestHashAPIToken_Deterministic(t *testing.T) {
-	if hashAPIToken("engram_pat_abc") != hashAPIToken("engram_pat_abc") {
+	if hashAPIToken("substrate_pat_abc") != hashAPIToken("substrate_pat_abc") {
 		t.Fatal("hash should be deterministic")
 	}
 }

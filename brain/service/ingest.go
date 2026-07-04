@@ -15,8 +15,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	pgvector "github.com/pgvector/pgvector-go"
 
-	"open-brain-go/brain"
-	"open-brain-go/brain/repository"
+	"substrate/brain"
+	"substrate/brain/repository"
 )
 
 // Tunables (configurable later; constants for v1).
