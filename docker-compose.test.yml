@@ -1,14 +1,14 @@
 # Isolated smoke-test stack for the live-capture branch.
-# Run with a distinct project name so it never touches the live `engram` stack:
-#   sops exec-env secrets/engram.env \
-#     'docker compose -p engram-test -f docker-compose.test.yml up -d --build'
+# Run with a distinct project name so it never touches the live `substrate` stack:
+#   sops exec-env secrets/substrate.env \
+#     'docker compose -p substrate-test -f docker-compose.test.yml up -d --build'
 # Tear down (wipes the test DB volume):
-#   docker compose -p engram-test -f docker-compose.test.yml down -v
+#   docker compose -p substrate-test -f docker-compose.test.yml down -v
 services:
   db:
     image: pgvector/pgvector:pg17
     environment:
-      POSTGRES_DB: openbrain
+      POSTGRES_DB: substrate
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       APP_USER_PASSWORD: ${APP_USER_PASSWORD}
@@ -24,7 +24,7 @@ services:
       - ./extensions/jobhunt/schema.sql:/docker-entrypoint-initdb.d/25-jobhunt.sql
       - ./docker/post-schema-grants.sh:/docker-entrypoint-initdb.d/90-grants.sh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d openbrain"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d substrate"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -35,10 +35,10 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://app_user:${APP_USER_PASSWORD}@db:5432/openbrain
+      DATABASE_URL: postgres://app_user:${APP_USER_PASSWORD}@db:5432/substrate
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       AUTHELIA_ISSUER_URL: https://auth.x1024.net
-      OIDC_CLIENT_ID: engram
+      OIDC_CLIENT_ID: substrate
       PORT: "8080"
     ports:
       - "127.0.0.1:8088:8080"

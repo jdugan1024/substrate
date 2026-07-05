@@ -61,8 +61,8 @@ func iconHandler() http.HandlerFunc {
 }
 
 var manifestJSON = `{
-  "name": "Engram",
-  "short_name": "Engram",
+  "name": "Substrate",
+  "short_name": "Substrate",
   "description": "Personal knowledge capture",
   "start_url": "/",
   "display": "standalone",

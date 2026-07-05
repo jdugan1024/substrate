@@ -31,7 +31,7 @@ func TestBuildEntriesQueryNoQuery(t *testing.T) {
 }
 
 func TestBuildEntriesQueryWithQueryAndType(t *testing.T) {
-	sql, args := buildEntriesQuery("engram notes", "note.thought", 51, 100)
+	sql, args := buildEntriesQuery("substrate notes", "note.thought", 51, 100)
 	if !strings.Contains(sql, "websearch_to_tsquery") || !strings.Contains(sql, "ts_rank") {
 		t.Error("expected FTS query with ranking")
 	}
@@ -39,7 +39,7 @@ func TestBuildEntriesQueryWithQueryAndType(t *testing.T) {
 	if len(args) != 4 {
 		t.Fatalf("want 4 args, got %d: %v", len(args), args)
 	}
-	if args[0] != "engram notes" || args[1] != "note.thought" || args[2] != 51 || args[3] != 100 {
+	if args[0] != "substrate notes" || args[1] != "note.thought" || args[2] != 51 || args[3] != 100 {
 		t.Errorf("args = %v", args)
 	}
 	if !strings.Contains(sql, "LIMIT $3 OFFSET $4") {
@@ -51,8 +51,8 @@ func TestBuildEntriesQueryWithQueryAndType(t *testing.T) {
 }
 
 func TestBuildEntriesQueryWithQueryNoType(t *testing.T) {
-	sql, args := buildEntriesQuery("engram", "", 51, 0)
-	if len(args) != 3 || args[0] != "engram" {
+	sql, args := buildEntriesQuery("substrate", "", 51, 0)
+	if len(args) != 3 || args[0] != "substrate" {
 		t.Errorf("args = %v", args)
 	}
 	if !strings.Contains(sql, "LIMIT $2 OFFSET $3") {
@@ -65,8 +65,8 @@ func TestBuildCountsQuery(t *testing.T) {
 	if strings.Contains(sql, "websearch_to_tsquery") || args != nil {
 		t.Error("empty query counts should be a plain group-by")
 	}
-	sql, args = buildCountsQuery("engram")
-	if !strings.Contains(sql, "GROUP BY record_type") || len(args) != 1 || args[0] != "engram" {
+	sql, args = buildCountsQuery("substrate")
+	if !strings.Contains(sql, "GROUP BY record_type") || len(args) != 1 || args[0] != "substrate" {
 		t.Errorf("fts counts wrong: args=%v", args)
 	}
 	// Counts must NOT filter by record_type (every chip needs a count).

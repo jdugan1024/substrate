@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"open-brain-go/brain"
+	"substrate/brain"
 )
 
 func TestWebSessionStore_CreateGetDelete(t *testing.T) {
@@ -115,7 +115,7 @@ func TestWebAuthMiddleware_ValidSession(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest("GET", "/entries", nil)
-	req.AddCookie(&http.Cookie{Name: "engram_session", Value: sessionID})
+	req.AddCookie(&http.Cookie{Name: "substrate_session", Value: sessionID})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -131,7 +131,7 @@ func TestWebAuthMiddleware_InvalidSession(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest("GET", "/entries", nil)
-	req.AddCookie(&http.Cookie{Name: "engram_session", Value: "bogus-id"})
+	req.AddCookie(&http.Cookie{Name: "substrate_session", Value: "bogus-id"})
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -145,7 +145,7 @@ func TestWebCheckHandler_Authenticated(t *testing.T) {
 	sessionID := store.Create("user-abc")
 
 	req := httptest.NewRequest("GET", "/web/check", nil)
-	req.AddCookie(&http.Cookie{Name: "engram_session", Value: sessionID})
+	req.AddCookie(&http.Cookie{Name: "substrate_session", Value: sessionID})
 	rec := httptest.NewRecorder()
 	webCheckHandler(store)(rec, req)
 
@@ -207,7 +207,7 @@ func TestWebLogoutHandler(t *testing.T) {
 	sessionID := store.Create("user-def")
 
 	req := httptest.NewRequest("GET", "/web/logout", nil)
-	req.AddCookie(&http.Cookie{Name: "engram_session", Value: sessionID})
+	req.AddCookie(&http.Cookie{Name: "substrate_session", Value: sessionID})
 	rec := httptest.NewRecorder()
 	webLogoutHandler(store)(rec, req)
 
@@ -219,12 +219,12 @@ func TestWebLogoutHandler(t *testing.T) {
 	}
 	var cookieCleared bool
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == "engram_session" && c.MaxAge < 0 {
+		if c.Name == "substrate_session" && c.MaxAge < 0 {
 			cookieCleared = true
 		}
 	}
 	if !cookieCleared {
-		t.Fatal("expected engram_session cookie to be cleared")
+		t.Fatal("expected substrate_session cookie to be cleared")
 	}
 }
 

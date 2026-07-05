@@ -12,8 +12,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"open-brain-go/brain"
-	"open-brain-go/brain/repository"
+	"substrate/brain"
+	"substrate/brain/repository"
 )
 
 // EntryService orchestrates extraction, validation, embedding, and persistence

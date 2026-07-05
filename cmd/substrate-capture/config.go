@@ -29,13 +29,13 @@ type Config struct {
 func DefaultConfig() Config {
 	home, _ := os.UserHomeDir()
 	return Config{
-		BaseURL:       envDefault("ENGRAM_URL", "https://engram.x1024.net"),
-		PAT:           os.Getenv("ENGRAM_PAT"),
-		StatePath:     filepath.Join(home, ".local", "state", "engram-capture", "state.json"),
+		BaseURL:       envDefault("SUBSTRATE_URL", "https://substrate.x1024.net"),
+		PAT:           os.Getenv("SUBSTRATE_PAT"),
+		StatePath:     filepath.Join(home, ".local", "state", "substrate-capture", "state.json"),
 		ClaudeRoots:   []string{filepath.Join(home, ".claude", "projects")},
 		CodexRoots:    []string{filepath.Join(home, ".codex", "sessions")},
-		Machine:       envDefault("ENGRAM_CAPTURE_MACHINE", defaultHostname()),
-		Username:      envDefault("ENGRAM_CAPTURE_USERNAME", defaultUsername()),
+		Machine:       envDefault("SUBSTRATE_CAPTURE_MACHINE", defaultHostname()),
+		Username:      envDefault("SUBSTRATE_CAPTURE_USERNAME", defaultUsername()),
 		SweepInterval: 30 * time.Second,
 		Debounce:      2 * time.Second,
 		EndedAfter:    10 * time.Minute,
@@ -45,7 +45,7 @@ func DefaultConfig() Config {
 
 func (c Config) Validate() error {
 	if !c.DryRun && strings.TrimSpace(c.PAT) == "" {
-		return errors.New("ENGRAM_PAT is required unless --dry-run is set")
+		return errors.New("SUBSTRATE_PAT is required unless --dry-run is set")
 	}
 	if strings.TrimSpace(c.BaseURL) == "" {
 		return errors.New("server URL is required")

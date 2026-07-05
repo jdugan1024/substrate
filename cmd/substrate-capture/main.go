@@ -16,7 +16,7 @@ func main() {
 
 	var claudeRoots string
 	var codexRoots string
-	flag.StringVar(&cfg.BaseURL, "url", cfg.BaseURL, "Engram base URL")
+	flag.StringVar(&cfg.BaseURL, "url", cfg.BaseURL, "Substrate base URL")
 	flag.StringVar(&cfg.StatePath, "state", cfg.StatePath, "local state JSON path")
 	flag.StringVar(&claudeRoots, "claude-root", strings.Join(cfg.ClaudeRoots, string(os.PathListSeparator)), "Claude Code transcript root(s), path-list separated")
 	flag.StringVar(&codexRoots, "codex-root", strings.Join(cfg.CodexRoots, string(os.PathListSeparator)), "Codex transcript root(s), path-list separated")

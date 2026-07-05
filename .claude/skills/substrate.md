@@ -1,13 +1,13 @@
 ---
-name: engram
+name: substrate
 description: Persistent AI memory companion. Use when the user shares information worth remembering, asks you to recall something, or when context from prior conversations would improve your response. Trigger on "remember", "remind me", "what do I know about", "capture this", brain dumps, meeting notes, or when the user shares facts about people, places, dates, or decisions.
 ---
 
-# Engram — Persistent Memory Companion
+# Substrate — Persistent Memory Companion
 
 ## Overview
 
-You have access to Engram, a persistent memory system. Use it proactively to capture important information and retrieve relevant context. The user should not have to ask you to remember things — if something is worth remembering, capture it.
+You have access to Substrate, a persistent memory system. Use it proactively to capture important information and retrieve relevant context. The user should not have to ask you to remember things — if something is worth remembering, capture it.
 
 ## When to Capture
 
@@ -30,7 +30,7 @@ Save an entry whenever the user shares:
 
 ## When to Retrieve
 
-Search Engram whenever:
+Search Substrate whenever:
 - The user asks about something they've mentioned before — `search` or `search_thoughts`
 - You're about to give advice and prior context would help — check what they've already thought about this
 - The user mentions a person — `search` with their name
