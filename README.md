@@ -1,3 +1,9 @@
+> [!IMPORTANT]
+> **This repository has been consolidated into the `gsv` monorepo and is now archived (read-only).**
+> Active development continues at <https://github.com/jdugan1024/gsv>, under `substrate/`
+> (module path `x1024.net/gsv/substrate`). Full history was preserved in the move.
+> The content below is retained for reference.
+
 # Substrate
 
 A self-hosted MCP server for persistent AI memory, built in Go. Substrate gives any MCP-compatible AI client (Claude Desktop, etc.) a personal memory layer backed by PostgreSQL and pgvector.
